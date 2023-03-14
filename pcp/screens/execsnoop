@@ -3,8 +3,9 @@
 #
 
 [execsnoop]
-caption = Exec syscall snoop
-enabled = true
+heading = ExecSnoop
+caption = BPF exec(2) syscall snoop
+default = false
 
 pid.heading = PID
 pid.caption = Process Identifier

@@ -27,15 +27,6 @@ in the source distribution for its full text.
 #include "pcp/PCPMetric.h"
 
 
-static const PCPDynamicColumn* defineKeyMetric(const Settings* settings) {
-   const PCPDynamicColumn* column;
-   column = (PCPDynamicColumn*)Hashtable_get(settings->dynamicColumns, settings->ss->fields[0]);
-   if (!column)
-      return NULL;
-
-   return column;
-}
-
 static int getColumnCount(const ProcessField* fields) {
    int count = 0;
    for (unsigned int i = 0; fields[i]; i++)
@@ -96,41 +87,43 @@ static int PCPGenericDataList_updateGenericDataList(PCPGenericDataList* this) {
    GenericDataList* gl = (GenericDataList*) this;
    const Settings* settings = gl->settings;
    const ProcessField* fields = settings->ss->fields;
-   const PCPDynamicColumn* keyMetric;
-
-   keyMetric = defineKeyMetric(settings);
+   const PCPDynamicColumn* keyMetric = NULL;
+   pmInDom keyInDom = PM_INDOM_NULL;
 
    if (!settings->ss->dynamic)
       return 0;
 
-   // Instance Domain Validation
-   // check if all columns share the same InDom
-   pmInDom keyInDom = PCPMetric_InDom(keyMetric->id);
-   for (unsigned int i = 0 ; fields[i]; i++) {
+   // check if all columns share the same instance domain
+   for (unsigned int i = 0; fields[i]; i++) {
       PCPDynamicColumn* dc = Hashtable_get(settings->dynamicColumns, fields[i]);
-      if (!dc)
+      if (!keyMetric) {
+         keyMetric = dc;
+         keyInDom = PCPMetric_InDom(dc->id);
+      } else if (!dc) {
          return -1;
-
-      if (keyInDom != PCPMetric_InDom(dc->id))
+      } else if (keyInDom != PCPMetric_InDom(dc->id)) {
          return 0;
+      }
+   }
+   if (!keyMetric) {
+      fprintf(stderr, "Error: no configuration for screen '%s'\n", settings->ss->dynamic);
+      return -1;
    }
 
    int requiredColumns = getColumnCount(fields);
    int requiredRows = getRowCount(keyMetric->id);
 
-   // alloc
+   // allocate memory
    allocRows(gl, requiredRows);
    if (requiredRows == 0)
       return 0;
-
    allocColumns(gl, requiredColumns, requiredRows);
 
-   // fill
+   // fill instance list
    int instance = -1, offset = -1;
    while (PCPMetric_iterate(keyMetric->id, &instance, &offset)) {
       for (unsigned int i = 0; fields[i]; i++) {
-         DynamicColumn* dc = Hashtable_get(settings->dynamicColumns, fields[i]);
-         PCPDynamicColumn* column = (PCPDynamicColumn*) dc;
+         PCPDynamicColumn* column = Hashtable_get(settings->dynamicColumns, fields[i]);
          if (!column)
             return -1;
 
@@ -161,17 +154,16 @@ static int PCPGenericDataList_updateGenericDataList(PCPGenericDataList* this) {
 
 void GenericDataList_goThroughEntries(GenericDataList* super, bool pauseUpdate)
 {
-   bool enabled = !pauseUpdate;
-   PCPGenericDataList* this = (PCPGenericDataList*) super;
-
-   if (enabled)
+   if (!pauseUpdate) {
+      PCPGenericDataList* this = (PCPGenericDataList*) super;
       PCPGenericDataList_updateGenericDataList(this);
+   }
 }
 
-GenericDataList* GenericDataList_addPlatformList(GenericDataList* super)
+GenericDataList* GenericDataList_addPlatformList(Settings* settings)
 {
    PCPGenericDataList* this = xCalloc(1, sizeof(PCPGenericDataList));
-   super = &(this->super);
+   GenericDataList* super = &(this->super);
 
    super->genericDataRow = Vector_new(Class(GenericData), false, DEFAULT_SIZE);
    super->displayList = Vector_new(Class(GenericData), false, DEFAULT_SIZE);
@@ -179,12 +171,14 @@ GenericDataList* GenericDataList_addPlatformList(GenericDataList* super)
 
    super->totalRows = 0;
    super->needsSort = true;
+   super->settings = settings;
 
    return super;
 }
 
 void GenericDataList_removePlatformList(GenericDataList* gl)
 {
+   // nathans TODO
    // SMA FIXME loop & GenericDataList_removeGenericData()
    Hashtable_delete(gl->genericDataTable);
    Vector_delete(gl->genericDataRow);

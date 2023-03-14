@@ -34,7 +34,8 @@ typedef struct {
 } MeterColumnSetting;
 
 typedef struct {
-   char* name;
+   char* heading;  // user-editable Screen name (pretty)
+   char *dynamic;  // from DynamicScreen config (fixed)
    ProcessField* fields;
    uint32_t flags;
    int direction;
@@ -44,7 +45,6 @@ typedef struct {
    bool treeView;
    bool treeViewAlwaysByPID;
    bool allBranchesCollapsed;
-   bool dynamic;
 } ScreenSettings;
 
 typedef struct Settings_ {
@@ -53,6 +53,8 @@ typedef struct Settings_ {
    HeaderLayout hLayout;
    MeterColumnSetting* hColumns;
    Hashtable* dynamicColumns;
+   Hashtable* dynamicMeters;
+   Hashtable* dynamicScreens;
 
    ScreenSettings** screens;
    unsigned int nScreens;
@@ -99,6 +101,7 @@ typedef struct Settings_ {
    #endif
 
    bool changed;
+   bool readonly;
    uint64_t lastUpdate;
 } Settings;
 
@@ -118,7 +121,7 @@ void Settings_delete(Settings* this);
 
 int Settings_write(const Settings* this, bool onCrash);
 
-Settings* Settings_new(unsigned int initialCpuCount, Hashtable* dynamicColumns);
+Settings* Settings_new(unsigned int initialCpuCount, Hashtable* dynamicMeters, Hashtable* dynamicColumns);
 
 ScreenSettings* Settings_newScreen(Settings* this, const ScreenDefaults* defaults);
 
@@ -127,10 +130,6 @@ void ScreenSettings_delete(ScreenSettings* this);
 void ScreenSettings_invertSortOrder(ScreenSettings* this);
 
 void ScreenSettings_setSortKey(ScreenSettings* this, ProcessField sortKey);
-
-void Settings_enableReadonly(void);
-
-bool Settings_isReadonly(void);
 
 void Settings_setHeaderLayout(Settings* this, HeaderLayout hLayout);
 

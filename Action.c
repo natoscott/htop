@@ -162,6 +162,14 @@ Htop_Reaction Action_setSortKey(Settings* settings, ProcessField sortKey) {
 
 // ----------------------------------------
 
+static bool actionReadableProcess(Settings* settings) {
+   return !(settings->ss->dynamic);
+}
+
+static bool actionWritableProcess(Settings* settings) {
+   return !(settings->readonly || settings->ss->dynamic);
+}
+
 static Htop_Reaction actionSetSortColumn(State* st) {
    Htop_Reaction reaction = HTOP_OK;
    Panel* sortPanel = Panel_new(0, 0, 0, 0, Class(ListItem), true, FunctionBar_newEnterEsc("Sort   ", "Cancel "));
@@ -249,6 +257,8 @@ static Htop_Reaction actionToggleMergedCommand(State* st) {
 
 static Htop_Reaction actionToggleTreeView(State* st) {
    ScreenSettings* ss = st->settings->ss;
+   if (ss->dynamic)
+      return HTOP_OK;
    ss->treeView = !ss->treeView;
 
    if (!ss->allBranchesCollapsed)
@@ -263,9 +273,8 @@ static Htop_Reaction actionToggleHideMeters(State* st) {
 
 static Htop_Reaction actionExpandOrCollapseAllBranches(State* st) {
    ScreenSettings* ss = st->settings->ss;
-   if (!ss->treeView) {
+   if (ss->dynamic || !ss->treeView)
       return HTOP_OK;
-   }
    ss->allBranchesCollapsed = !ss->allBranchesCollapsed;
    if (ss->allBranchesCollapsed)
       ProcessList_collapseAllBranches(st->pl);
@@ -288,7 +297,7 @@ static Htop_Reaction actionIncSearch(State* st) {
 }
 
 static Htop_Reaction actionHigherPriority(State* st) {
-   if (Settings_isReadonly())
+   if (!actionReadableProcess(st->settings))
       return HTOP_OK;
 
    bool changed = changePriority(st->mainPanel, -1);
@@ -296,7 +305,7 @@ static Htop_Reaction actionHigherPriority(State* st) {
 }
 
 static Htop_Reaction actionLowerPriority(State* st) {
-   if (Settings_isReadonly())
+   if (!actionReadableProcess(st->settings))
       return HTOP_OK;
 
    bool changed = changePriority(st->mainPanel, 1);
@@ -304,8 +313,12 @@ static Htop_Reaction actionLowerPriority(State* st) {
 }
 
 static Htop_Reaction actionInvertSortOrder(State* st) {
-   ScreenSettings_invertSortOrder(st->settings->ss);
-   st->pl->needsSort = true;
+   ScreenSettings* ss = st->settings->ss;
+   ScreenSettings_invertSortOrder(ss);
+   if (ss->dynamic)
+      st->gl->needsSort = true;
+   else
+      st->pl->needsSort = true;
    return HTOP_REFRESH | HTOP_SAVE_SETTINGS | HTOP_KEEP_FOLLOWING | HTOP_UPDATE_PANELHDR;
 }
 
@@ -352,11 +365,12 @@ static Htop_Reaction actionPrevScreen(State* st) {
 
 Htop_Reaction Action_setScreenTab(Settings* settings, int x) {
    int s = 2;
+fprintf(stderr, "Action_setScreenTab\n");
    for (unsigned int i = 0; i < settings->nScreens; i++) {
       if (x < s) {
          return 0;
       }
-      const char* name = settings->screens[i]->name;
+      const char* name = settings->screens[i]->heading;
       int len = strlen(name);
       if (x <= s + len + 1) {
          settings->ssIndex = i;
@@ -373,7 +387,7 @@ static Htop_Reaction actionQuit(ATTR_UNUSED State* st) {
 }
 
 static Htop_Reaction actionSetAffinity(State* st) {
-   if (Settings_isReadonly())
+   if (!actionWritableProcess(st->settings))
       return HTOP_OK;
 
    if (st->pl->activeCPUs == 1)
@@ -405,12 +419,11 @@ static Htop_Reaction actionSetAffinity(State* st) {
 #else
    return HTOP_OK;
 #endif
-
 }
 
 #ifdef SCHEDULER_SUPPORT
 static Htop_Reaction actionSetSchedPolicy(State* st) {
-   if (Settings_isReadonly())
+   if (!actionWritableProcess(st->settings))
       return HTOP_KEEP_FOLLOWING;
 
    static int preSelectedPolicy = SCHEDULINGPANEL_INITSELECTEDPOLICY;
@@ -454,7 +467,7 @@ static Htop_Reaction actionSetSchedPolicy(State* st) {
 #endif  /* SCHEDULER_SUPPORT */
 
 static Htop_Reaction actionKill(State* st) {
-   if (Settings_isReadonly())
+   if (!actionWritableProcess(st->settings))
       return HTOP_OK;
 
    static int preSelectedSignal = SIGNALSPANEL_INITSELECTEDSIGNAL;
@@ -474,6 +487,8 @@ static Htop_Reaction actionKill(State* st) {
 }
 
 static Htop_Reaction actionFilterByUser(State* st) {
+   if (!actionReadableProcess(st->settings))
+      return HTOP_OK;
    Panel* usersPanel = Panel_new(0, 0, 0, 0, Class(ListItem), true, FunctionBar_newEnterEsc("Show   ", "Cancel "));
    Panel_setHeader(usersPanel, "Show processes of:");
    UsersTable_foreach(st->ut, addUserToVector, usersPanel);
@@ -493,6 +508,8 @@ static Htop_Reaction actionFilterByUser(State* st) {
 }
 
 Htop_Reaction Action_follow(State* st) {
+   if (!actionReadableProcess(st->settings))
+      return HTOP_OK;
    st->pl->following = MainPanel_selectedPid(st->mainPanel);
    Panel_setSelectionColor((Panel*)st->mainPanel, PANEL_SELECTION_FOLLOW);
    return HTOP_KEEP_FOLLOWING;
@@ -504,7 +521,7 @@ static Htop_Reaction actionSetup(State* st) {
 }
 
 static Htop_Reaction actionLsof(State* st) {
-   if (Settings_isReadonly())
+   if (!actionWritableProcess(st->settings))
       return HTOP_OK;
 
    const Process* p = (Process*) Panel_getSelected((Panel*)st->mainPanel);
@@ -520,6 +537,9 @@ static Htop_Reaction actionLsof(State* st) {
 }
 
 static Htop_Reaction actionShowLocks(State* st) {
+   if (!actionReadableProcess(st->settings))
+      return HTOP_OK;
+
    const Process* p = (Process*) Panel_getSelected((Panel*)st->mainPanel);
    if (!p)
       return HTOP_OK;
@@ -532,7 +552,7 @@ static Htop_Reaction actionShowLocks(State* st) {
 }
 
 static Htop_Reaction actionStrace(State* st) {
-   if (Settings_isReadonly())
+   if (!actionReadableProcess(st->settings))
       return HTOP_OK;
 
    const Process* p = (Process*) Panel_getSelected((Panel*)st->mainPanel);
@@ -540,10 +560,8 @@ static Htop_Reaction actionStrace(State* st) {
       return HTOP_OK;
 
    TraceScreen* ts = TraceScreen_new(p);
-   bool ok = TraceScreen_forkTracer(ts);
-   if (ok) {
+   if (TraceScreen_forkTracer(ts))
       InfoScreen_run((InfoScreen*)ts);
-   }
    TraceScreen_delete((Object*)ts);
    clear();
    CRT_enableDelay();
@@ -551,11 +569,17 @@ static Htop_Reaction actionStrace(State* st) {
 }
 
 static Htop_Reaction actionTag(State* st) {
-   Process* p = (Process*) Panel_getSelected((Panel*)st->mainPanel);
-   if (!p)
-      return HTOP_OK;
-
-   Process_toggleTag(p);
+   if (actionReadableProcess(st->settings)) {
+      Process* p = (Process*) Panel_getSelected((Panel*)st->mainPanel);
+      if (!p)
+         return HTOP_OK;
+      Process_toggleTag(p);
+   } else {
+      GenericData* gdp = (GenericData*) Panel_getSelected((Panel*)st->mainPanel);
+      if (!gdp)
+         return HTOP_OK;
+      GenericData_toggleTag(gdp);
+   }
    Panel_onKey((Panel*)st->mainPanel, KEY_DOWN);
    return HTOP_OK;
 }
@@ -723,7 +747,7 @@ static Htop_Reaction actionHelp(State* st) {
 
    line += 2;
 
-   const bool readonly = Settings_isReadonly();
+   const bool readonly = st->settings->readonly;
 
    int item;
    for (item = 0; helpLeft[item].key; item++) {
@@ -762,13 +786,21 @@ static Htop_Reaction actionHelp(State* st) {
 
 static Htop_Reaction actionUntagAll(State* st) {
    for (int i = 0; i < Panel_size((Panel*)st->mainPanel); i++) {
-      Process* p = (Process*) Panel_get((Panel*)st->mainPanel, i);
-      p->tag = false;
+      if (actionReadableProcess(st->settings)) {
+         Process* p = (Process*) Panel_get((Panel*)st->mainPanel, i);
+         p->tag = false;
+      } else {
+         GenericData* gdp = (GenericData*) Panel_get((Panel*)st->mainPanel, i);
+         gdp->tag = false;
+      }
    }
    return HTOP_REFRESH;
 }
 
 static Htop_Reaction actionTagAllChildren(State* st) {
+   if (!actionReadableProcess(st->settings))
+      return HTOP_OK;
+
    Process* p = (Process*) Panel_getSelected((Panel*)st->mainPanel);
    if (!p)
       return HTOP_OK;
@@ -778,6 +810,9 @@ static Htop_Reaction actionTagAllChildren(State* st) {
 }
 
 static Htop_Reaction actionShowEnvScreen(State* st) {
+   if (!actionReadableProcess(st->settings))
+      return HTOP_OK;
+
    Process* p = (Process*) Panel_getSelected((Panel*)st->mainPanel);
    if (!p)
       return HTOP_OK;
@@ -791,6 +826,9 @@ static Htop_Reaction actionShowEnvScreen(State* st) {
 }
 
 static Htop_Reaction actionShowCommandScreen(State* st) {
+   if (!actionReadableProcess(st->settings))
+      return HTOP_OK;
+
    Process* p = (Process*) Panel_getSelected((Panel*)st->mainPanel);
    if (!p)
       return HTOP_OK;

@@ -275,7 +275,8 @@ ScreenSettings* Settings_newScreen(Settings* this, const ScreenDefaults* default
 
    ScreenSettings* ss = xMalloc(sizeof(ScreenSettings));
    *ss = (ScreenSettings) {
-      .name = xStrdup(defaults->name),
+      .heading = xStrdup(defaults->name),
+      .dynamic = NULL,
       .fields = xCalloc(LAST_PROCESSFIELD, sizeof(ProcessField)),
       .flags = 0,
       .direction = sortDesc ? -1 : 1,
@@ -285,7 +286,6 @@ ScreenSettings* Settings_newScreen(Settings* this, const ScreenDefaults* default
       .treeView = false,
       .treeViewAlwaysByPID = false,
       .allBranchesCollapsed = false,
-      .dynamic = false,
    };
 
    ScreenSettings_readFields(ss, this->dynamicColumns, defaults->columns);
@@ -297,7 +297,8 @@ ScreenSettings* Settings_newScreen(Settings* this, const ScreenDefaults* default
 }
 
 void ScreenSettings_delete(ScreenSettings* this) {
-   free(this->name);
+   free(this->heading);
+   free(this->dynamic);
    free(this->fields);
    free(this);
 }
@@ -371,7 +372,7 @@ static bool Settings_read(Settings* this, const char* fileName, unsigned int ini
          screen->treeView = atoi(option[1]);
       } else if (String_eq(option[0], "dynamic_screen") && this->config_version <= 2) {
          screen = Settings_defaultScreens(this);
-         screen->dynamic = atoi(option[1]);
+         free_and_xStrdup(&screen->dynamic, option[1]);
       } else if (String_eq(option[0], "tree_view_always_by_pid") && this->config_version <= 2) {
          // old (no screen) naming also supported for backwards compatibility
          screen = Settings_defaultScreens(this);
@@ -504,7 +505,7 @@ static bool Settings_read(Settings* this, const char* fileName, unsigned int ini
             screen->treeView = atoi(option[1]);
       } else if (String_eq(option[0], ".dynamic_screen")) {
          if (screen)
-            screen->dynamic = atoi(option[1]);
+            free_and_xStrdup(&screen->dynamic, option[1]);
       } else if (String_eq(option[0], ".tree_view_always_by_pid")) {
          if (screen)
             screen->treeViewAlwaysByPID = atoi(option[1]);
@@ -643,21 +644,24 @@ int Settings_write(const Settings* this, bool onCrash) {
    printSettingInteger("tree_view_always_by_pid", this->screens[0]->treeViewAlwaysByPID);
    printSettingInteger("all_branches_collapsed", this->screens[0]->allBranchesCollapsed);
 
-fprintf(stderr, "writing %d screens\n", (int)this->nScreens);
+fprintf(stderr, "Writing %d screens\n", this->nScreens);
    for (unsigned int i = 0; i < this->nScreens; i++) {
       ScreenSettings* ss = this->screens[i];
-      fprintf(fd, "screen:%s=", ss->name);
+
+fprintf(stderr, "Writing screen %s (type %s)\n", ss->heading, ss->dynamic? ss->dynamic:"process");
+      fprintf(fd, "screen:%s=", ss->heading);
       writeFields(fd, ss->fields, this->dynamicColumns, true, separator);
-      if (ss->dynamic == false) {
+      if (ss->dynamic)
+        printSettingString(".dynamic_screen", ss->dynamic);
+      if (ss->sortKey >= 0) {
          printSettingString(".sort_key", toFieldName(this->dynamicColumns, ss->sortKey));
-         printSettingString(".tree_sort_key", toFieldName(this->dynamicColumns, ss->treeSortKey));
-         printSettingInteger(".tree_view", ss->treeView);
-         printSettingInteger(".tree_view_always_by_pid", ss->treeViewAlwaysByPID);
          printSettingInteger(".sort_direction", ss->direction);
-         printSettingInteger(".tree_sort_direction", ss->treeDirection);
-         printSettingInteger(".all_branches_collapsed", ss->allBranchesCollapsed);
       }
-      printSettingInteger(".dynamic_screen", ss->dynamic);
+      printSettingString(".tree_sort_key", toFieldName(this->dynamicColumns, ss->treeSortKey));
+      printSettingInteger(".tree_view", ss->treeView);
+      printSettingInteger(".tree_view_always_by_pid", ss->treeViewAlwaysByPID);
+      printSettingInteger(".tree_sort_direction", ss->treeDirection);
+      printSettingInteger(".all_branches_collapsed", ss->allBranchesCollapsed);
    }
 
    #undef printSettingString
@@ -677,10 +681,11 @@ fprintf(stderr, "writing %d screens\n", (int)this->nScreens);
    return r;
 }
 
-Settings* Settings_new(unsigned int initialCpuCount, Hashtable* dynamicColumns) {
+Settings* Settings_new(unsigned int initialCpuCount, Hashtable* dynamicMeters, Hashtable* dynamicColumns) {
    Settings* this = xCalloc(1, sizeof(Settings));
 
    this->dynamicColumns = dynamicColumns;
+   this->dynamicMeters = dynamicMeters;
    this->hLayout = HF_TWO_50_50;
    this->hColumns = xCalloc(HeaderLayout_getColumns(this->hLayout), sizeof(MeterColumnSetting));
 
@@ -785,6 +790,7 @@ Settings* Settings_new(unsigned int initialCpuCount, Hashtable* dynamicColumns) 
    this->ssIndex = 0;
    this->ss = this->screens[this->ssIndex];
 
+   this->readonly = false;
    this->lastUpdate = 1;
 
    return this;
@@ -804,16 +810,6 @@ void ScreenSettings_setSortKey(ScreenSettings* this, ProcessField sortKey) {
       this->treeSortKey = sortKey;
       this->treeDirection = (Process_fields[sortKey].defaultSortDesc) ? -1 : 1;
    }
-}
-
-static bool readonly = false;
-
-void Settings_enableReadonly(void) {
-   readonly = true;
-}
-
-bool Settings_isReadonly(void) {
-   return readonly;
 }
 
 void Settings_setHeaderLayout(Settings* this, HeaderLayout hLayout) {

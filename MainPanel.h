@@ -25,7 +25,7 @@ typedef struct MainPanel_ {
    State* state;
    IncSet* inc;
    Htop_Action* keys;
-   pid_t pidSearch;
+   int pidSearch;
 } MainPanel;
 
 typedef bool(*MainPanel_ForeachProcessFn)(Process*, Arg);
@@ -41,7 +41,7 @@ bool MainPanel_foreachProcess(MainPanel* this, MainPanel_ForeachProcessFn fn, Ar
 
 extern const PanelClass MainPanel_class;
 
-MainPanel* MainPanel_new(void);
+MainPanel* MainPanel_new(Settings* settings);
 
 void MainPanel_setState(MainPanel* this, State* state);
 

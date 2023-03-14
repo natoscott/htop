@@ -23,7 +23,17 @@ void GenericData_init(GenericData* this, const Settings* settings) {
 }
 
 void GenericData_done(ATTR_UNUSED GenericData* this) {
-   assert (this != NULL);
+   assert(this != NULL);
+}
+
+const char* GenericData_getRowName(const GenericData* this) {
+   // TODO - string identifier for the row, for search/filter
+fprintf(stderr, "%s: %p\n", "GenericData_getRowName", (const void*)this);
+   return NULL;
+}
+
+void GenericData_toggleTag(GenericData* this) {
+   this->tag = !this->tag;
 }
 
 void GenericData_writeField(ATTR_UNUSED const GenericData* this, ATTR_UNUSED RichString* str, ATTR_UNUSED int field) {
@@ -35,6 +45,8 @@ void GenericData_display(const Object* cast, RichString* out) {
    const ProcessField* fields = this->settings->ss->fields;
    for (int i = 0; fields[i]; i++)
       As_GenericData(this)->writeField(this, out, i);
+   if (this->tag == true)
+      RichString_setAttr(out, CRT_colors[PROCESS_TAG]);
 }
 
 int GenericData_compare(const void* v1, const void* v2) {
@@ -52,10 +64,7 @@ int GenericData_compare(const void* v1, const void* v2) {
 }
 
 int GenericData_compareByKey_Base(const GenericData* g1, const GenericData* g2, ATTR_UNUSED ProcessField key) {
-   // TODO
-   (void) g1;
-   (void) g2;
-
+fprintf(stderr, "%s: %p vs %p\n", "GenericData_compareByKey_Base", (const void*)g1, (const void*)g2);	// TODO
    return 0;
 }
 

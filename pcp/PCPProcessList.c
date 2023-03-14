@@ -63,11 +63,11 @@ static char* setUser(UsersTable* this, unsigned int uid, int pid, int offset) {
    return name;
 }
 
-ProcessList* ProcessList_new(UsersTable* usersTable, Hashtable* dynamicMeters, Hashtable* dynamicColumns, Hashtable* pidMatchList, uid_t userId) {
+ProcessList* ProcessList_new(UsersTable* usersTable, Hashtable* pidMatchList, uid_t userId) {
    PCPProcessList* this = xCalloc(1, sizeof(PCPProcessList));
    ProcessList* super = &(this->super);
 
-   ProcessList_init(super, Class(PCPProcess), usersTable, dynamicMeters, dynamicColumns, pidMatchList, userId);
+   ProcessList_init(super, Class(PCPProcess), usersTable, pidMatchList, userId);
 
    struct timeval timestamp;
    gettimeofday(&timestamp, NULL);
@@ -165,13 +165,13 @@ static void PCPProcessList_updateID(Process* process, int pid, int offset) {
    process->state = PCPProcessList_getProcessState(Metric_instance_char(PCP_PROC_STATE, pid, offset, '?'));
 }
 
-static void PCPProcessList_updateInfo(Process* process, int pid, int offset, char* command, size_t commLen) {
+static void PCPProcessList_updateInfo(Process* process, int pid, int offset, char* comm, size_t commLen) {
    PCPProcess* pp = (PCPProcess*) process;
    pmAtomValue value;
 
    if (!PCPMetric_instance(PCP_PROC_CMD, pid, offset, &value, PM_TYPE_STRING))
       value.cp = xStrdup("<unknown>");
-   String_safeStrncpy(command, value.cp, commLen);
+   String_safeStrncpy(comm, value.cp, commLen);
    free(value.cp);
 
    process->pgrp = Metric_instance_u32(PCP_PROC_PGRP, pid, offset, 0);
@@ -306,15 +306,15 @@ static void PCPProcessList_updateCmdline(Process* process, int pid, int offset, 
       return;
    }
 
-   char* command = value.cp;
-   int length = strlen(command);
-   if (command[0] != '(') {
+   char* psargs = value.cp;
+   int length = strlen(psargs);
+   if (psargs[0] != '(') {
       process->isKernelThread = false;
    } else {
-      ++command;
+      ++psargs;
       --length;
-      if (command[length - 1] == ')')
-         command[--length] = '\0';
+      if (psargs[length - 1] == ')')
+         psargs[--length] = '\0';
       process->isKernelThread = true;
    }
 
@@ -323,12 +323,12 @@ static void PCPProcessList_updateCmdline(Process* process, int pid, int offset, 
       /* htop considers the next character after the last / that is before
        * basenameOffset, as the start of the basename in cmdline - see
        * Process_writeCommand */
-      if (command[i] == '/')
+      if (psargs[i] == '/')
          tokenStart = i + 1;
    }
    int tokenEnd = length;
 
-   Process_updateCmdline(process, command, tokenStart, tokenEnd);
+   Process_updateCmdline(process, psargs, tokenStart, tokenEnd);
    free(value.cp);
 
    Process_updateComm(process, comm);
@@ -395,11 +395,11 @@ static bool PCPProcessList_updateProcesses(PCPProcessList* this, double period, 
             PCPProcessList_updateSmaps(pp, pid, offset);
       }
 
-      char command[MAX_NAME + 1];
+      char comm[MAX_NAME + 1];
       unsigned int tty_nr = proc->tty_nr;
       unsigned long long int lasttimes = pp->utime + pp->stime;
 
-      PCPProcessList_updateInfo(proc, pid, offset, command, sizeof(command));
+      PCPProcessList_updateInfo(proc, pid, offset, comm, sizeof(comm));
       proc->starttime_ctime += Platform_getBootTime();
       if (tty_nr != proc->tty_nr)
          PCPProcessList_updateTTY(proc, pid, offset);
@@ -413,11 +413,11 @@ static bool PCPProcessList_updateProcesses(PCPProcessList* this, double period, 
       PCPProcessList_updateUsername(proc, pid, offset, pl->usersTable);
 
       if (!preExisting) {
-         PCPProcessList_updateCmdline(proc, pid, offset, command);
+         PCPProcessList_updateCmdline(proc, pid, offset, comm);
          Process_fillStarttimeBuffer(proc);
          ProcessList_add(pl, proc);
       } else if (settings->updateProcessNames && proc->state != ZOMBIE) {
-         PCPProcessList_updateCmdline(proc, pid, offset, command);
+         PCPProcessList_updateCmdline(proc, pid, offset, comm);
       }
 
       if (settings->ss->flags & PROCESS_FLAG_LINUX_CGROUP)
@@ -438,11 +438,11 @@ static bool PCPProcessList_updateProcesses(PCPProcessList* this, double period, 
       if (settings->ss->flags & PROCESS_FLAG_LINUX_AUTOGROUP)
          PCPProcessList_readAutogroup(pp, pid, offset);
 
-      if (proc->state == ZOMBIE && !proc->cmdline && command[0]) {
-         Process_updateCmdline(proc, command, 0, strlen(command));
+      if (proc->state == ZOMBIE && !proc->cmdline && comm[0]) {
+         Process_updateCmdline(proc, comm, 0, strlen(comm));
       } else if (Process_isThread(proc)) {
-         if ((settings->showThreadNames || Process_isKernelThread(proc)) && command[0]) {
-            Process_updateCmdline(proc, command, 0, strlen(command));
+         if ((settings->showThreadNames || Process_isKernelThread(proc)) && comm[0]) {
+            Process_updateCmdline(proc, comm, 0, strlen(comm));
          }
 
          if (Process_isKernelThread(proc)) {

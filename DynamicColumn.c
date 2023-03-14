@@ -19,7 +19,10 @@ in the source distribution for its full text.
 
 
 Hashtable* DynamicColumns_new(void) {
-   return Platform_dynamicColumns();
+   Hashtable* dynamics = Platform_dynamicColumns();
+   if (dynamics)
+       return dynamics;
+   return Hashtable_new(0, true);
 }
 
 void DynamicColumns_delete(Hashtable* dynamics) {
@@ -42,6 +45,7 @@ typedef struct {
 static void DynamicColumn_compare(ht_key_t key, void* value, void* data) {
    const DynamicColumn* column = (const DynamicColumn*)value;
    DynamicIterator* iter = (DynamicIterator*)data;
+//fprintf(stderr, "DynamicColumn_compare %s vs %s\n", iter->name, column->name);
    if (String_eq(iter->name, column->name)) {
       iter->data = column;
       iter->key = key;

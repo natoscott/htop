@@ -8,8 +8,9 @@
 
 
 typedef struct DynamicScreen_ {
-   char name[32];  /* unique name, cannot contain spaces */
-   char* caption;
+   char name[32];  /* unique name cannot contain any spaces */
+   char* heading;  /* user-settable more readable name */
+   char* caption;  /* explanatory text for screen */
    char* fields;
    char* sortKey;
    int direction;

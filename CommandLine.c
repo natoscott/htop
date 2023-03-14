@@ -1,7 +1,7 @@
 /*
 htop - CommandLine.c
 (C) 2004-2011 Hisham H. Muhammad
-(C) 2020-2021 htop dev team
+(C) 2020-2023 htop dev team
 Released under the GNU GPLv2+, see the COPYING file
 in the source distribution for its full text.
 */
@@ -315,36 +315,27 @@ int CommandLine_run(const char* name, int argc, char** argv) {
    if ((status = parseArguments(name, argc, argv, &flags)) != STATUS_OK)
       return status != STATUS_OK_EXIT ? 1 : 0;
 
-   if (flags.readonly)
-      Settings_enableReadonly();
-
    if (!Platform_init())
       return 1;
 
    Process_setupColumnWidths();
 
    UsersTable* ut = UsersTable_new();
-   Hashtable* dc = DynamicColumns_new();
    Hashtable* dm = DynamicMeters_new();
-   if (!dc)
-      dc = Hashtable_new(0, true);
+   Hashtable* dc = DynamicColumns_new();
 
-   ProcessList* pl = ProcessList_new(ut, dm, dc, flags.pidMatchList, flags.userId);
-   Settings* settings = Settings_new(pl->activeCPUs, dc);
-fprintf(stderr, "Settings created\n");
-   Hashtable* dt = DynamicScreens_new(settings);
-fprintf(stderr, "DynamicScreens created\n");
-   GenericDataList* gl = GenericDataList_new();
-fprintf(stderr, "GenericDataList created\n");
-
+   ProcessList* pl = ProcessList_new(ut, flags.pidMatchList, flags.userId);
+   Settings* settings = Settings_new(pl->activeCPUs, dm, dc);
    pl->settings = settings;
-   if (gl)
-      gl->settings = settings;
+
+   Hashtable* dt = DynamicScreens_new(settings);
+   GenericDataList* gl = GenericDataList_new(settings);
 
    Header* header = Header_new(pl, gl, settings, 2);
-
    Header_populateFromSettings(header);
 
+   if (flags.readonly)
+      settings->readonly = true;
    if (flags.delay != -1)
       settings->delay = flags.delay;
    if (!flags.useColors)
@@ -370,8 +361,7 @@ fprintf(stderr, "GenericDataList created\n");
 
    CRT_init(settings, flags.allowUnicode);
 
-   MainPanel* panel = MainPanel_new();
-   MainPanel* genericDataPanel = MainPanel_new();
+   MainPanel* panel = MainPanel_new(settings);
 
    MainPanel_updateLabels(panel, settings->ss->treeView, flags.commFilter);
 
@@ -379,6 +369,7 @@ fprintf(stderr, "GenericDataList created\n");
       .settings = settings,
       .ut = ut,
       .pl = pl,
+      .gl = gl,
       .mainPanel = panel,
       .header = header,
       .pauseUpdate = false,
@@ -387,11 +378,10 @@ fprintf(stderr, "GenericDataList created\n");
    };
 
    panel->state = &state;
-   genericDataPanel->state = &state;
 
    ProcessList_setPanel(pl, (Panel*) panel);
    if (gl)
-      GenericDataList_setPanel(gl, (Panel*) genericDataPanel);
+      GenericDataList_setPanel(gl, (Panel*) panel);
 
    if (flags.commFilter)
       setCommFilter(&state, &(flags.commFilter));
@@ -415,7 +405,7 @@ fprintf(stderr, "GenericDataList created\n");
    if (settings->changed) {
       int r = Settings_write(settings, false);
       if (r < 0)
-         fprintf(stderr, "Can not save configuration to %s: %s\n", settings->filename, strerror(-r));
+         fprintf(stderr, "Cannot save configuration to %s: %s\n", settings->filename, strerror(-r));
    }
 
    Header_delete(header);

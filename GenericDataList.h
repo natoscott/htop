@@ -23,7 +23,7 @@ typedef struct GenericDataList_ {
    const Settings* settings;
 
    Vector* displayList;
-   Vector* genericDataRow; /* each elem is struct GenericData */
+   Vector* genericDataRow; /* each element is a GenericData structure */
    Hashtable* genericDataTable;
 
    bool needsSort;
@@ -42,13 +42,12 @@ typedef struct GenericDataList_ {
 } GenericDataList;
 
 /* Implemented by platforms */
-GenericDataList* GenericDataList_addPlatformList(GenericDataList* super);
+GenericDataList* GenericDataList_addPlatformList(Settings* settings);
 void GenericDataList_removePlatformList(GenericDataList* super);
 void GenericDataList_goThroughEntries(GenericDataList* super, bool pauseUpdate);
 
-
 /* GenericData Lists */
-GenericDataList* GenericDataList_new(void);
+GenericDataList* GenericDataList_new(Settings* settings);
 
 void GenericDataList_delete(GenericDataList* gl);
 
@@ -64,6 +63,10 @@ void GenericDataList_removeGenericData(GenericDataList* this);
 
 /* helper functions */
 void GenericDataList_setPanel(GenericDataList* this, Panel* panel);
+
+void GenericDataList_printHeader(const GenericDataList* this, RichString* header);
+
+GenericField GenericDataList_keyAt(const GenericDataList* this, int at);
 
 void GenericDataList_rebuildPanel(GenericDataList* this);
 

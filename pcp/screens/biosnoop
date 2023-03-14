@@ -3,7 +3,8 @@
 #
 
 [biosnoop]
-caption = Block I/O Snoop
+heading = BioSnoop
+caption = BPF block I/O snoop
 default = false
 
 pid.heading = PID

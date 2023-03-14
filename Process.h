@@ -292,6 +292,8 @@ typedef struct ProcessFieldData_ {
    bool autoWidth;
 } ProcessFieldData;
 
+const char* ProcessField_alignedTitle(const struct Settings_* settings, ProcessField field);
+
 // Implemented in platform-specific code:
 void Process_writeField(const Process* this, RichString* str, ProcessField field);
 int Process_compare(const void* v1, const void* v2);

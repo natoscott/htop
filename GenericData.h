@@ -14,14 +14,21 @@ in the source distribution for its full text.
 #include "RichString.h"
 #include "Settings.h"
 
+/* Generic field IDs are dynamically appended to the fixed ProcessField entries */
+typedef enum ProcessField_ GenericField;
 
 typedef struct GenericData_ {
    /* Super object for emulated OOP */
    Object super;
 
+   /* Unique row identifier, -1 if unset */
+   int rowId;
+
+   /* Whether the row was tagged by the user */
+   bool tag;
+
    /* Pointer to quasi-global data structures */
    const Settings* settings;
-
 } GenericData;
 
 
@@ -51,6 +58,8 @@ extern const GenericDataClass GenericData_class;
 
 void GenericData_init(GenericData* this, const Settings* settings);
 
+void GenericData_toggleTag(GenericData* this);
+
 void GenericData_done(GenericData* this);
 
 void GenericData_addField(GenericData* this);
@@ -58,5 +67,7 @@ void GenericData_addField(GenericData* this);
 void GenericData_removeField(GenericData* this);
 
 void GenericData_rebuildFields(GenericData* this);
+
+const char* GenericData_getRowName(const GenericData* this);
 
 #endif

@@ -3,7 +3,9 @@
 #
 
 [opensnoop]
-caption = Open syscall snoop
+heading = OpenSnoop
+caption = BPF open(2) syscall snoop
+default = false
 
 pid.heading = PID
 pid.metric = bpf.opensnoop.pid

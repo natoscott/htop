@@ -3,7 +3,9 @@
 #
 
 [cgroupsio]
-caption = CGroups I/O
+heading = CGroupsIO
+caption = Control Groups I/O
+default = false
 
 iops.heading = IOPS
 iops.caption = I/O operations

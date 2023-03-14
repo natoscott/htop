@@ -448,6 +448,6 @@ void GenericDataList_goThroughEntries(ATTR_UNUSED GenericDataList* super, ATTR_U
 
 void GenericDataList_removePlatformList(ATTR_UNUSED GenericDataList* gl) { return; }
 
-GenericDataList* GenericDataList_addPlatformList(ATTR_UNUSED GenericDataList* super) {return NULL; }
+GenericDataList* GenericDataList_addPlatformList(ATTR_UNUSED Settings* settings) { return NULL; }
 
 void GenericData_delete(ATTR_UNUSED Object* cast) { return; }

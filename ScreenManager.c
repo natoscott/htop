@@ -203,10 +203,10 @@ static void ScreenManager_drawScreenTabs(ScreenManager* this) {
    }
 
    for (int s = 0; screens[s]; s++) {
-      bool ok = drawTab(&y, &x, l, screens[s]->name, s == cur);
-      if (!ok) {
+      char* title = screens[s]->heading;
+      bool ok = drawTab(&y, &x, l, title, s == cur);
+      if (!ok)
          break;
-      }
    }
    attrset(CRT_colors[RESET_COLOR]);
 }

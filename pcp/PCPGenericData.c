@@ -36,7 +36,6 @@ GenericData* PCPGenericData_new(const Settings* settings) {
    Object_setClass(this, Class(PCPGenericData));
 
    this->fields = Hashtable_new(0, false);
-
    this->fieldsCount = 0;
 
    GenericData_init(&this->super, settings);

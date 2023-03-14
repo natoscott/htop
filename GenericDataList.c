@@ -1,8 +1,8 @@
 /*
 htop - GenericDataList.h
 (C) 2022 Sohaib Mohammed
-(C) 2022 htop dev team
-(C) 2022 Red Hat, Inc.
+(C) 2022-2023 htop dev team
+(C) 2022-2023 Red Hat, Inc.
 Released under the GNU GPLv2+, see the COPYING file
 in the source distribution for its full text.
 */
@@ -12,16 +12,13 @@ in the source distribution for its full text.
 #include "Object.h"
 
 
-GenericDataList* GenericDataList_new(void) {
-   GenericDataList* gl = xCalloc(1, sizeof(GenericDataList));
-
-   gl = GenericDataList_addPlatformList(gl);
-
-   return gl;
+GenericDataList* GenericDataList_new(Settings* settings) {
+   return GenericDataList_addPlatformList(settings);
 }
 
 void GenericDataList_delete(GenericDataList* this) {
-   GenericDataList_removePlatformList(this);
+   if (this)
+      GenericDataList_removePlatformList(this);
 }
 
 void GenericDataList_addGenericData(GenericDataList* this, GenericData* g) {
@@ -65,6 +62,50 @@ static void GenericDataList_updateDisplayList(GenericDataList* this) {
    for (int i = 0; i < size; i++)
       Vector_add(this->displayList, Vector_get(this->genericDataRow, i));
    this->needsSort = false;
+}
+
+GenericField GenericDataList_keyAt(const GenericDataList* this, int at) {
+   int x = 0;
+   const Settings* settings = this->settings;
+   const GenericField* fields = settings->ss->fields;
+   GenericField field;
+   for (int i = 0; (field = fields[i]); i++) {
+      int len = strlen(ProcessField_alignedTitle(settings, field));
+      if (at >= x && at <= x + len) {
+         return field;
+      }
+      x += len;
+   }
+   return NULL_PROCESSFIELD;
+}
+
+void GenericDataList_printHeader(const GenericDataList* this, RichString* header) {
+   RichString_rewind(header, RichString_size(header));
+
+   const Settings* settings = this->settings;
+   const ScreenSettings* ss = settings->ss;
+   const GenericField* fields = ss->fields;
+
+   GenericField key = ScreenSettings_getActiveSortKey(ss);
+
+   for (int i = 0; fields[i]; i++) {
+      int color;
+      if (key == fields[i]) {
+         color = CRT_colors[PANEL_SELECTION_FOCUS];
+      } else {
+         color = CRT_colors[PANEL_HEADER_FOCUS];
+      }
+
+      RichString_appendWide(header, color, ProcessField_alignedTitle(settings, fields[i]));
+      if (key == fields[i] && RichString_getCharVal(*header, RichString_size(header) - 1) == ' ') {
+         bool ascending = ScreenSettings_getActiveDirection(ss) == 1;
+         RichString_rewind(header, 1);  // rewind to override space
+         RichString_appendnWide(header,
+                                CRT_colors[PANEL_SELECTION_FOCUS],
+                                CRT_treeStr[ascending ? TREE_STR_ASC : TREE_STR_DESC],
+                                1);
+      }
+   }
 }
 
 void GenericDataList_rebuildPanel(GenericDataList* this) {

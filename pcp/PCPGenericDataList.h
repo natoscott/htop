@@ -20,7 +20,7 @@ typedef struct PCPGenericDataList_ {
 
 void GenericDataList_goThroughEntries(GenericDataList* super, bool pauseUpdate);
 
-GenericDataList* GenericDataList_addPlatformList(GenericDataList* super);
+GenericDataList* GenericDataList_addPlatformList(Settings* settings);
 
 void GenericDataList_removePlatformList(GenericDataList* super);
 

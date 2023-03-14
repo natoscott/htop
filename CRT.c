@@ -19,6 +19,7 @@ in the source distribution for its full text.
 #include <string.h>
 #include <unistd.h>
 
+#include "CommandLine.h"
 #include "ProvideCurses.h"
 #include "XUtils.h"
 
@@ -1153,10 +1154,11 @@ void CRT_handleSIGSEGV(int signal) {
       "============================\n"
       "Please check at https://htop.dev/issues whether this issue has already been reported.\n"
       "If no similar issue has been reported before, please create a new issue with the following information:\n"
-      "  - Your "PACKAGE" version: '"VERSION"'\n"
+      "  - Your %s version: '"VERSION"'\n"
       "  - Your OS and kernel version (uname -a)\n"
       "  - Your distribution and release (lsb_release -a)\n"
-      "  - Likely steps to reproduce (How did it happen?)\n"
+      "  - Likely steps to reproduce (How did it happen?)\n",
+      command
    );
 
 #ifdef PRINT_BACKTRACE
@@ -1196,15 +1198,16 @@ void CRT_handleSIGSEGV(int signal) {
    fprintf(stderr,
       "\n"
       "To make the above information more practical to work with, "
-      "please also provide a disassembly of your "PACKAGE" binary. "
+      "please also provide a disassembly of your %s binary. "
       "This can usually be done by running the following command:\n"
-      "\n"
+      "\n",
+      command
    );
 
 #ifdef HTOP_DARWIN
-   fprintf(stderr, "   otool -tvV `which "PACKAGE"` > ~/htop.otool\n");
+   fprintf(stderr, "   otool -tvV `which %s` > ~/%s.otool\n", command, command);
 #else
-   fprintf(stderr, "   objdump -d -S -w `which "PACKAGE"` > ~/htop.objdump\n");
+   fprintf(stderr, "   objdump -d -S -w `which %s` > ~/%s.objdump\n", command, command);
 #endif
 
    fprintf(stderr,
@@ -1216,12 +1219,13 @@ void CRT_handleSIGSEGV(int signal) {
    fprintf(stderr,
       "Running this program with debug symbols or inside a debugger may provide further insights.\n"
       "\n"
-      "Thank you for helping to improve "PACKAGE"!\n"
-      "\n"
+      "Thank you for helping to improve %s!\n"
+      "\n",
+      command
    );
 
    /* Call old sigsegv handler; may be default exit or third party one (e.g. ASAN) */
-   if (sigaction (signal, &old_sig_handler[signal], NULL) < 0) {
+   if (sigaction(signal, &old_sig_handler[signal], NULL) < 0) {
       /* This avoids an infinite loop in case the handler could not be reset. */
       fprintf(stderr,
          "!!! Chained handler could not be restored. Forcing exit.\n"

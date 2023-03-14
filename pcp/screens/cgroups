@@ -3,6 +3,7 @@
 #
 
 [cgroups]
+heading = CGroups
 caption = Control Groups
 default = true
 

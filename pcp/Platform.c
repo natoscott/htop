@@ -869,6 +869,7 @@ bool Platform_dynamicColumnWriteField(const Process* proc, RichString* str, unsi
 
 Hashtable* Platform_dynamicScreens(Settings* settings) {
    PCPDynamicScreen_appendScreens(&pcp->screens, settings);
+   settings->dynamicScreens = pcp->screens.table;
    return pcp->screens.table;
 }
 

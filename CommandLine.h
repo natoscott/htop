@@ -14,6 +14,8 @@ typedef enum {
    STATUS_OK_EXIT
 } CommandLineStatus;
 
+extern const char *command;
+
 int CommandLine_run(const char* name, int argc, char** argv);
 
 #endif

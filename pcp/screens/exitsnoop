@@ -3,8 +3,9 @@
 #
 
 [exitsnoop]
-caption = Process exit snoop
-default = true
+heading = ExitSnoop
+caption = BPF process exit(2) snoop
+default = false
 
 pid.heading = PID
 pid.caption = Process Identifier

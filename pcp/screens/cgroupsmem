@@ -3,8 +3,9 @@
 #
 
 [cgroupsmem]
-caption = CGroups Memory
-default = true
+heading = CGroupsMem
+caption = Control Groups Memory
+default = false
 
 current.heading = MEM
 current.caption = Current memory

@@ -2,7 +2,6 @@
 #define HEADER_PCPDynamicScreen
 
 #include <stddef.h>
-
 #include <stdbool.h>
 
 #include "CRT.h"
@@ -16,11 +15,12 @@ struct PCPDynamicColumns_;
 
 typedef struct PCPDynamicScreen_ {
    DynamicScreen super;
+
    struct PCPDynamicColumn_* columns;
-   char* displayInstances;
    size_t totalColumns;
-   bool defaultEnabled;
-   bool enabled;
+
+   bool defaultEnabled; /* enabled setting from configuration file */
+   /* at runtime enabled screens have entries in settings->screens */
 } PCPDynamicScreen;
 
 typedef struct PCPDynamicScreens_ {

@@ -210,9 +210,13 @@ const PanelClass MainPanel_class = {
    .printHeader = MainPanel_printHeader
 };
 
-MainPanel* MainPanel_new(void) {
+MainPanel* MainPanel_new(Settings* settings) {
+   FunctionBar* functions = settings->readonly ?
+      FunctionBar_new(MainFunctions_ro, NULL, NULL):
+      FunctionBar_new(MainFunctions, NULL, NULL);
    MainPanel* this = AllocThis(MainPanel);
-   Panel_init((Panel*) this, 1, 1, 1, 1, Class(Process), false, FunctionBar_new(Settings_isReadonly() ? MainFunctions_ro : MainFunctions, NULL, NULL));
+
+   Panel_init((Panel*) this, 1, 1, 1, 1, Class(Process), false, functions);
    this->keys = xCalloc(KEY_MAX, sizeof(Htop_Action));
    this->inc = IncSet_new(MainPanel_getFunctionBar(this));
 

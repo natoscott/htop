@@ -3,7 +3,8 @@
 #
 
 [filesys]
-caption = Filesystem
+heading = Filesystems
+caption = Mounted block device filesystems
 
 blockdev.heading = Filesystem
 blockdev.metric = filesys.mountdir

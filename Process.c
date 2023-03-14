@@ -434,7 +434,7 @@ void Process_makeCommandStr(Process* this) {
 
    mc->lastUpdate = settingsStamp;
 
-   /* The field separtor "│" has been chosen such that it will not match any
+   /* The field separator "│" has been chosen such that it will not match any
     * valid string used for searching or filtering */
    const char* SEPARATOR = CRT_treeStr[TREE_STR_VERT];
    const int SEPARATOR_LEN = strlen(SEPARATOR);
@@ -1129,7 +1129,7 @@ bool Process_isTomb(const Process* this) {
 }
 
 bool Process_setPriority(Process* this, int priority) {
-   if (this->settings->readonly)
+   if (Settings_isReadonly())
       return false;
 
    int old_prio = getpriority(PRIO_PROCESS, this->pid);

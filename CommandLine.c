@@ -91,7 +91,7 @@ typedef struct CommandLineSettings_ {
    bool readonly;
 } CommandLineSettings;
 
-static CommandLineStatus parseArguments(const char* program, int argc, char** argv, CommandLineSettings* flags) {
+static CommandLineStatus parseArguments(int argc, char** argv, CommandLineSettings* flags) {
 
    *flags = (CommandLineSettings) {
       .pidMatchList = NULL,
@@ -300,7 +300,7 @@ static void setCommFilter(State* state, char** commFilter) {
    *commFilter = NULL;
 }
 
-int CommandLine_run(const char* name, int argc, char** argv) {
+int CommandLine_run(int argc, char** argv) {
 
    /* initialize locale */
    const char* lc_ctype;
@@ -312,8 +312,11 @@ int CommandLine_run(const char* name, int argc, char** argv) {
    CommandLineStatus status = STATUS_OK;
    CommandLineSettings flags = { 0 };
 
-   if ((status = parseArguments(name, argc, argv, &flags)) != STATUS_OK)
+   if ((status = parseArguments(argc, argv, &flags)) != STATUS_OK)
       return status != STATUS_OK_EXIT ? 1 : 0;
+
+   if (flags.readonly)
+      Settings_enableReadonly();
 
    if (!Platform_init())
       return 1;
@@ -323,8 +326,11 @@ int CommandLine_run(const char* name, int argc, char** argv) {
    UsersTable* ut = UsersTable_new();
    Hashtable* dm = DynamicMeters_new();
    Hashtable* dc = DynamicColumns_new();
+   if (!dc)
+      dc = Hashtable_new(0, true);
 
    ProcessList* pl = ProcessList_new(ut, flags.pidMatchList, flags.userId);
+
    Settings* settings = Settings_new(pl->activeCPUs, dm, dc);
    pl->settings = settings;
 
@@ -334,8 +340,6 @@ int CommandLine_run(const char* name, int argc, char** argv) {
    Header* header = Header_new(pl, gl, settings, 2);
    Header_populateFromSettings(header);
 
-   if (flags.readonly)
-      settings->readonly = true;
    if (flags.delay != -1)
       settings->delay = flags.delay;
    if (!flags.useColors)
@@ -361,8 +365,7 @@ int CommandLine_run(const char* name, int argc, char** argv) {
 
    CRT_init(settings, flags.allowUnicode);
 
-   MainPanel* panel = MainPanel_new(settings);
-
+   MainPanel* panel = MainPanel_new();
    MainPanel_updateLabels(panel, settings->ss->treeView, flags.commFilter);
 
    State state = {
@@ -377,14 +380,13 @@ int CommandLine_run(const char* name, int argc, char** argv) {
       .hideMeters = false,
    };
 
-   panel->state = &state;
+   MainPanel_setState(panel, &state);
+   if (flags.commFilter)
+      setCommFilter(&state, &(flags.commFilter));
 
    ProcessList_setPanel(pl, (Panel*) panel);
    if (gl)
       GenericDataList_setPanel(gl, (Panel*) panel);
-
-   if (flags.commFilter)
-      setCommFilter(&state, &(flags.commFilter));
 
    ScreenManager* scr = ScreenManager_new(header, settings, &state, true);
    ScreenManager_add(scr, (Panel*) panel, -1);

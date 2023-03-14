@@ -1,7 +1,7 @@
 /*
 htop - htop.c
 (C) 2004-2011 Hisham H. Muhammad
-(C) 2020-2023 htop dev team
+(C) 2020-2021 htop dev team
 Released under the GNU GPLv2+, see the COPYING file
 in the source distribution for its full text.
 */
@@ -10,8 +10,9 @@ in the source distribution for its full text.
 
 #include "CommandLine.h"
 
+
 const char *program = PACKAGE;
 
 int main(int argc, char** argv) {
-   return CommandLine_run(program, argc, argv);
+   return CommandLine_run(argc, argv);
 }

@@ -5,6 +5,7 @@ Released under the GNU GPLv2+, see the COPYING file
 in the source distribution for its full text.
 */
 
+#include "ZramMeter.h"
 #include "config.h"
 
 #include "linux/Platform.h"
@@ -325,16 +326,15 @@ double Platform_setCPUValues(Meter* this, unsigned int cpu) {
       v[CPU_METER_GUEST]   = cpuData->guestPeriod / total * 100.0;
       v[CPU_METER_IOWAIT]  = cpuData->ioWaitPeriod / total * 100.0;
       this->curItems = 8;
+      percent = v[CPU_METER_NICE] + v[CPU_METER_NORMAL] + v[CPU_METER_KERNEL] + v[CPU_METER_IRQ] + v[CPU_METER_SOFTIRQ];
       if (this->pl->settings->accountGuestInCPUMeter) {
-         percent = v[0] + v[1] + v[2] + v[3] + v[4] + v[5] + v[6];
-      } else {
-         percent = v[0] + v[1] + v[2] + v[3] + v[4];
+         percent += v[CPU_METER_STEAL] + v[CPU_METER_GUEST];
       }
    } else {
-      v[2] = cpuData->systemAllPeriod / total * 100.0;
-      v[3] = (cpuData->stealPeriod + cpuData->guestPeriod) / total * 100.0;
+      v[CPU_METER_KERNEL] = cpuData->systemAllPeriod / total * 100.0;
+      v[CPU_METER_IRQ] = (cpuData->stealPeriod + cpuData->guestPeriod) / total * 100.0;
       this->curItems = 4;
-      percent = v[0] + v[1] + v[2] + v[3];
+      percent = v[CPU_METER_NICE] + v[CPU_METER_NORMAL] + v[CPU_METER_KERNEL] + v[CPU_METER_IRQ];
    }
    percent = CLAMP(percent, 0.0, 100.0);
    if (isnan(percent)) {
@@ -384,8 +384,8 @@ void Platform_setSwapValues(Meter* this) {
 void Platform_setZramValues(Meter* this) {
    const LinuxProcessList* lpl = (const LinuxProcessList*) this->pl;
    this->total = lpl->zram.totalZram;
-   this->values[0] = lpl->zram.usedZramComp;
-   this->values[1] = lpl->zram.usedZramOrig;
+   this->values[ZRAM_METER_COMPRESSED] = lpl->zram.usedZramComp;
+   this->values[ZRAM_METER_UNCOMPRESSED] = lpl->zram.usedZramOrig;
 }
 
 void Platform_setZfsArcValues(Meter* this) {
@@ -460,16 +460,16 @@ FileLocks_ProcessData* Platform_getProcessLocks(pid_t pid) {
          continue;
 
       errno = 0;
-      char *end = de->d_name;
+      char* end = de->d_name;
       int file = strtoull(de->d_name, &end, 10);
       if (errno || *end)
          continue;
 
       int fd = openat(dfd, de->d_name, O_RDONLY | O_CLOEXEC);
-      if(fd == -1)
+      if (fd == -1)
          continue;
-      FILE *f = fdopen(fd, "r");
-      if(!f) {
+      FILE* f = fdopen(fd, "r");
+      if (!f) {
          close(fd);
          continue;
       }

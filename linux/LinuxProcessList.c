@@ -14,6 +14,7 @@ in the source distribution for its full text.
 #include <dirent.h>
 #include <errno.h>
 #include <fcntl.h>
+#include <inttypes.h>
 #include <limits.h>
 #include <math.h>
 #include <stdbool.h>
@@ -210,28 +211,6 @@ static void LinuxProcessList_initNetlinkSocket(LinuxProcessList* this) {
 
 #endif
 
-static unsigned int scanAvailableCPUsFromCPUinfo(LinuxProcessList* this) {
-   FILE* file = fopen(PROCCPUINFOFILE, "r");
-   if (file == NULL)
-      return this->super.existingCPUs;
-
-   unsigned int availableCPUs = 0;
-
-   while (!feof(file)) {
-      char buffer[PROC_LINE_LENGTH];
-
-      if (fgets(buffer, PROC_LINE_LENGTH, file) == NULL)
-         break;
-
-      if (String_startsWith(buffer, "processor"))
-         availableCPUs++;
-   }
-
-   fclose(file);
-
-   return availableCPUs ? availableCPUs : 1;
-}
-
 static void LinuxProcessList_updateCPUcount(ProcessList* super) {
    /* Similar to get_nprocs_conf(3) / _SC_NPROCESSORS_CONF
     * https://sourceware.org/git/?p=glibc.git;a=blob;f=sysdeps/unix/sysv/linux/getsysstats.c;hb=HEAD
@@ -306,12 +285,6 @@ static void LinuxProcessList_updateCPUcount(ProcessList* super) {
    if (existing < 1)
       return;
 
-   if (Running_containerized) {
-      /* LXC munges /proc/cpuinfo but not the /sys/devices/system/cpu/ files,
-       * so limit the visible CPUs to what the guest has been configured to see: */
-      currExisting = active = scanAvailableCPUsFromCPUinfo(this);
-   }
-
 #ifdef HAVE_SENSORS_SENSORS_H
    /* When started with offline CPUs, libsensors does not monitor those,
     * even when they become online. */
@@ -320,7 +293,7 @@ static void LinuxProcessList_updateCPUcount(ProcessList* super) {
 #endif
 
    super->activeCPUs = active;
-   assert(Running_containerized || (existing == currExisting));
+   assert(existing == currExisting);
    super->existingCPUs = currExisting;
 }
 
@@ -410,11 +383,15 @@ static inline ProcessState LinuxProcessList_getProcessState(char state) {
    }
 }
 
-static bool LinuxProcessList_readStatFile(Process* process, openat_arg_t procFd, char* command, size_t commLen) {
-   LinuxProcess* lp = (LinuxProcess*) process;
+static bool LinuxProcessList_readStatFile(LinuxProcess* lp, openat_arg_t procFd, bool scanMainThread, char* command, size_t commLen) {
+   Process* process = &lp->super;
 
    char buf[MAX_READ + 1];
-   ssize_t r = xReadfileat(procFd, "stat", buf, sizeof(buf));
+   char path[22] = "stat";
+   if (scanMainThread) {
+      xSnprintf(path, sizeof(path), "task/%"PRIi32"/stat", (int32_t)process->pid);
+   }
+   ssize_t r = xReadfileat(procFd, path, buf, sizeof(buf));
    if (r < 0)
       return false;
 
@@ -535,7 +512,7 @@ static bool LinuxProcessList_readStatFile(Process* process, openat_arg_t procFd,
 }
 
 static bool LinuxProcessList_readStatusFile(Process* process, openat_arg_t procFd) {
-  LinuxProcess* lp = (LinuxProcess*) process;
+   LinuxProcess* lp = (LinuxProcess*) process;
 
    unsigned long ctxt = 0;
 #ifdef HAVE_VSERVER
@@ -635,26 +612,31 @@ static bool LinuxProcessList_updateUser(ProcessList* processList, Process* proce
    return true;
 }
 
-static void LinuxProcessList_readIoFile(LinuxProcess* process, openat_arg_t procFd, unsigned long long realtimeMs) {
+static void LinuxProcessList_readIoFile(LinuxProcess* lp, openat_arg_t procFd, bool scanMainThread, unsigned long long realtimeMs) {
+   Process* process = &lp->super;
+   char path[20] = "io";
    char buffer[1024];
-   ssize_t r = xReadfileat(procFd, "io", buffer, sizeof(buffer));
+   if (scanMainThread) {
+      xSnprintf(path, sizeof(path), "task/%"PRIi32"/io", (int32_t)process->pid);
+   }
+   ssize_t r = xReadfileat(procFd, path, buffer, sizeof(buffer));
    if (r < 0) {
-      process->io_rate_read_bps = NAN;
-      process->io_rate_write_bps = NAN;
-      process->io_rchar = ULLONG_MAX;
-      process->io_wchar = ULLONG_MAX;
-      process->io_syscr = ULLONG_MAX;
-      process->io_syscw = ULLONG_MAX;
-      process->io_read_bytes = ULLONG_MAX;
-      process->io_write_bytes = ULLONG_MAX;
-      process->io_cancelled_write_bytes = ULLONG_MAX;
-      process->io_last_scan_time_ms = realtimeMs;
+      lp->io_rate_read_bps = NAN;
+      lp->io_rate_write_bps = NAN;
+      lp->io_rchar = ULLONG_MAX;
+      lp->io_wchar = ULLONG_MAX;
+      lp->io_syscr = ULLONG_MAX;
+      lp->io_syscw = ULLONG_MAX;
+      lp->io_read_bytes = ULLONG_MAX;
+      lp->io_write_bytes = ULLONG_MAX;
+      lp->io_cancelled_write_bytes = ULLONG_MAX;
+      lp->io_last_scan_time_ms = realtimeMs;
       return;
    }
 
-   unsigned long long last_read = process->io_read_bytes;
-   unsigned long long last_write = process->io_write_bytes;
-   unsigned long long time_delta = realtimeMs > process->io_last_scan_time_ms ? realtimeMs - process->io_last_scan_time_ms : 0;
+   unsigned long long last_read = lp->io_read_bytes;
+   unsigned long long last_write = lp->io_write_bytes;
+   unsigned long long time_delta = realtimeMs > lp->io_last_scan_time_ms ? realtimeMs - lp->io_last_scan_time_ms : 0;
 
    char* buf = buffer;
    const char* line;
@@ -662,35 +644,35 @@ static void LinuxProcessList_readIoFile(LinuxProcess* process, openat_arg_t proc
       switch (line[0]) {
       case 'r':
          if (line[1] == 'c' && String_startsWith(line + 2, "har: ")) {
-            process->io_rchar = strtoull(line + 7, NULL, 10);
+            lp->io_rchar = strtoull(line + 7, NULL, 10);
          } else if (String_startsWith(line + 1, "ead_bytes: ")) {
-            process->io_read_bytes = strtoull(line + 12, NULL, 10);
-            process->io_rate_read_bps = time_delta ? (process->io_read_bytes - last_read) * /*ms to s*/1000. / time_delta : NAN;
+            lp->io_read_bytes = strtoull(line + 12, NULL, 10);
+            lp->io_rate_read_bps = time_delta ? (lp->io_read_bytes - last_read) * /*ms to s*/1000. / time_delta : NAN;
          }
          break;
       case 'w':
          if (line[1] == 'c' && String_startsWith(line + 2, "har: ")) {
-            process->io_wchar = strtoull(line + 7, NULL, 10);
+            lp->io_wchar = strtoull(line + 7, NULL, 10);
          } else if (String_startsWith(line + 1, "rite_bytes: ")) {
-            process->io_write_bytes = strtoull(line + 13, NULL, 10);
-            process->io_rate_write_bps = time_delta ? (process->io_write_bytes - last_write) * /*ms to s*/1000. / time_delta : NAN;
+            lp->io_write_bytes = strtoull(line + 13, NULL, 10);
+            lp->io_rate_write_bps = time_delta ? (lp->io_write_bytes - last_write) * /*ms to s*/1000. / time_delta : NAN;
          }
          break;
       case 's':
          if (line[4] == 'r' && String_startsWith(line + 1, "yscr: ")) {
-            process->io_syscr = strtoull(line + 7, NULL, 10);
+            lp->io_syscr = strtoull(line + 7, NULL, 10);
          } else if (String_startsWith(line + 1, "yscw: ")) {
-            process->io_syscw = strtoull(line + 7, NULL, 10);
+            lp->io_syscw = strtoull(line + 7, NULL, 10);
          }
          break;
       case 'c':
          if (String_startsWith(line + 1, "ancelled_write_bytes: ")) {
-            process->io_cancelled_write_bytes = strtoull(line + 23, NULL, 10);
+            lp->io_cancelled_write_bytes = strtoull(line + 23, NULL, 10);
          }
       }
    }
 
-   process->io_last_scan_time_ms = realtimeMs;
+   lp->io_last_scan_time_ms = realtimeMs;
 }
 
 typedef struct LibraryData_ {
@@ -1559,8 +1541,9 @@ static bool LinuxProcessList_recurseProcTree(LinuxProcessList* this, openat_arg_
          continue;
       }
 
+      bool scanMainThread = !hideUserlandThreads && !Process_isKernelThread(proc) && !parent;
       if (ss->flags & PROCESS_FLAG_IO)
-         LinuxProcessList_readIoFile(lp, procFd, pl->realtimeMs);
+         LinuxProcessList_readIoFile(lp, procFd, scanMainThread, pl->realtimeMs);
 
       if (!LinuxProcessList_readStatmFile(lp, procFd))
          goto errorReadingProcess;
@@ -1608,7 +1591,7 @@ static bool LinuxProcessList_recurseProcTree(LinuxProcessList* this, openat_arg_
       char statCommand[MAX_NAME + 1];
       unsigned long long int lasttimes = (lp->utime + lp->stime);
       unsigned long int tty_nr = proc->tty_nr;
-      if (!LinuxProcessList_readStatFile(proc, procFd, statCommand, sizeof(statCommand)))
+      if (!LinuxProcessList_readStatFile(lp, procFd, scanMainThread, statCommand, sizeof(statCommand)))
          goto errorReadingProcess;
 
       if (lp->flags & PF_KTHREAD) {

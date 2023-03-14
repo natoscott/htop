@@ -167,7 +167,7 @@ static bool actionReadableProcess(Settings* settings) {
 }
 
 static bool actionWritableProcess(Settings* settings) {
-   return !(settings->readonly || settings->ss->dynamic);
+   return !(Settings_isReadonly() || settings->ss->dynamic);
 }
 
 static Htop_Reaction actionSetSortColumn(State* st) {
@@ -297,6 +297,8 @@ static Htop_Reaction actionIncSearch(State* st) {
 }
 
 static Htop_Reaction actionHigherPriority(State* st) {
+   if (Settings_isReadonly())
+      return HTOP_OK;
    if (!actionReadableProcess(st->settings))
       return HTOP_OK;
 
@@ -305,6 +307,8 @@ static Htop_Reaction actionHigherPriority(State* st) {
 }
 
 static Htop_Reaction actionLowerPriority(State* st) {
+   if (Settings_isReadonly())
+      return HTOP_OK;
    if (!actionReadableProcess(st->settings))
       return HTOP_OK;
 
@@ -365,7 +369,7 @@ static Htop_Reaction actionPrevScreen(State* st) {
 
 Htop_Reaction Action_setScreenTab(Settings* settings, int x) {
    int s = 2;
-fprintf(stderr, "Action_setScreenTab\n");
+
    for (unsigned int i = 0; i < settings->nScreens; i++) {
       if (x < s) {
          return 0;
@@ -387,6 +391,8 @@ static Htop_Reaction actionQuit(ATTR_UNUSED State* st) {
 }
 
 static Htop_Reaction actionSetAffinity(State* st) {
+   if (Settings_isReadonly())
+      return HTOP_OK;
    if (!actionWritableProcess(st->settings))
       return HTOP_OK;
 
@@ -423,6 +429,8 @@ static Htop_Reaction actionSetAffinity(State* st) {
 
 #ifdef SCHEDULER_SUPPORT
 static Htop_Reaction actionSetSchedPolicy(State* st) {
+   if (Settings_isReadonly())
+      return HTOP_KEEP_FOLLOWING;
    if (!actionWritableProcess(st->settings))
       return HTOP_KEEP_FOLLOWING;
 
@@ -432,7 +440,7 @@ static Htop_Reaction actionSetSchedPolicy(State* st) {
    Panel* schedPanel = Scheduling_newPolicyPanel(preSelectedPolicy);
 
    const ListItem* policy;
-   for(;;) {
+   for (;;) {
       policy = (const ListItem*) Action_pickFromVector(st, schedPanel, 18, true);
 
       if (!policy || policy->key != -1)
@@ -467,6 +475,8 @@ static Htop_Reaction actionSetSchedPolicy(State* st) {
 #endif  /* SCHEDULER_SUPPORT */
 
 static Htop_Reaction actionKill(State* st) {
+   if (Settings_isReadonly())
+      return HTOP_OK;
    if (!actionWritableProcess(st->settings))
       return HTOP_OK;
 
@@ -521,6 +531,8 @@ static Htop_Reaction actionSetup(State* st) {
 }
 
 static Htop_Reaction actionLsof(State* st) {
+   if (Settings_isReadonly())
+      return HTOP_OK;
    if (!actionWritableProcess(st->settings))
       return HTOP_OK;
 
@@ -552,7 +564,7 @@ static Htop_Reaction actionShowLocks(State* st) {
 }
 
 static Htop_Reaction actionStrace(State* st) {
-   if (!actionReadableProcess(st->settings))
+   if (Settings_isReadonly())
       return HTOP_OK;
 
    const Process* p = (Process*) Panel_getSelected((Panel*)st->mainPanel);
@@ -747,7 +759,7 @@ static Htop_Reaction actionHelp(State* st) {
 
    line += 2;
 
-   const bool readonly = st->settings->readonly;
+   const bool readonly = Settings_isReadonly();
 
    int item;
    for (item = 0; helpLeft[item].key; item++) {

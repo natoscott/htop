@@ -790,7 +790,6 @@ Settings* Settings_new(unsigned int initialCpuCount, Hashtable* dynamicMeters, H
    this->ssIndex = 0;
    this->ss = this->screens[this->ssIndex];
 
-   this->readonly = false;
    this->lastUpdate = 1;
 
    return this;
@@ -810,6 +809,16 @@ void ScreenSettings_setSortKey(ScreenSettings* this, ProcessField sortKey) {
       this->treeSortKey = sortKey;
       this->treeDirection = (Process_fields[sortKey].defaultSortDesc) ? -1 : 1;
    }
+}
+
+static bool readonly = false;
+
+void Settings_enableReadonly(void) {
+   readonly = true;
+}
+
+bool Settings_isReadonly(void) {
+   return readonly;
 }
 
 void Settings_setHeaderLayout(Settings* this, HeaderLayout hLayout) {

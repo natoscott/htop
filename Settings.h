@@ -52,9 +52,9 @@ typedef struct Settings_ {
    int config_version;
    HeaderLayout hLayout;
    MeterColumnSetting* hColumns;
-   Hashtable* dynamicColumns;
-   Hashtable* dynamicMeters;
-   Hashtable* dynamicScreens;
+   Hashtable* dynamicColumns; /* runtime-discovered columns */
+   Hashtable* dynamicMeters;  /* runtime-discovered meters */
+   Hashtable* dynamicScreens; /* runtime-discovered screens */
 
    ScreenSettings** screens;
    unsigned int nScreens;
@@ -101,7 +101,6 @@ typedef struct Settings_ {
    #endif
 
    bool changed;
-   bool readonly;
    uint64_t lastUpdate;
 } Settings;
 
@@ -130,6 +129,10 @@ void ScreenSettings_delete(ScreenSettings* this);
 void ScreenSettings_invertSortOrder(ScreenSettings* this);
 
 void ScreenSettings_setSortKey(ScreenSettings* this, ProcessField sortKey);
+
+void Settings_enableReadonly(void);
+
+bool Settings_isReadonly(void);
 
 void Settings_setHeaderLayout(Settings* this, HeaderLayout hLayout);
 

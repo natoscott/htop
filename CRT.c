@@ -213,7 +213,8 @@ static int CRT_colorSchemes[LAST_COLORSCHEME][LAST_COLORELEMENT] = {
       [ZFS_OTHER] = ColorPair(Magenta, Black),
       [ZFS_COMPRESSED] = A_BOLD | ColorPair(Blue, Black),
       [ZFS_RATIO] = ColorPair(Magenta, Black),
-      [ZRAM] = ColorPair(Yellow, Black),
+      [ZRAM_COMPRESSED] = ColorPair(Blue, Black),
+      [ZRAM_UNCOMPRESSED] = ColorPair(Yellow, Black),
       [DYNAMIC_GRAY] = ColorPairGrayBlack,
       [DYNAMIC_DARKGRAY] = A_BOLD | ColorPairGrayBlack,
       [DYNAMIC_RED] = ColorPair(Red, Black),
@@ -323,7 +324,8 @@ static int CRT_colorSchemes[LAST_COLORSCHEME][LAST_COLORELEMENT] = {
       [ZFS_OTHER] = A_DIM,
       [ZFS_COMPRESSED] = A_BOLD,
       [ZFS_RATIO] = A_BOLD,
-      [ZRAM] = A_NORMAL,
+      [ZRAM_COMPRESSED] = A_NORMAL,
+      [ZRAM_UNCOMPRESSED] = A_NORMAL,
       [DYNAMIC_GRAY] = A_DIM,
       [DYNAMIC_DARKGRAY] = A_DIM,
       [DYNAMIC_RED] = A_BOLD,
@@ -433,7 +435,8 @@ static int CRT_colorSchemes[LAST_COLORSCHEME][LAST_COLORELEMENT] = {
       [ZFS_OTHER] = ColorPair(Magenta, White),
       [ZFS_COMPRESSED] = ColorPair(Cyan, White),
       [ZFS_RATIO] = ColorPair(Magenta, White),
-      [ZRAM] = ColorPair(Yellow, White),
+      [ZRAM_COMPRESSED] = ColorPair(Cyan, White),
+      [ZRAM_UNCOMPRESSED] = ColorPair(Yellow, White),
       [DYNAMIC_GRAY] = ColorPair(Black, White),
       [DYNAMIC_DARKGRAY] = A_BOLD | ColorPair(Black, White),
       [DYNAMIC_RED] = ColorPair(Red, White),
@@ -543,7 +546,8 @@ static int CRT_colorSchemes[LAST_COLORSCHEME][LAST_COLORELEMENT] = {
       [ZFS_OTHER] = A_BOLD | ColorPair(Magenta, Black),
       [ZFS_COMPRESSED] = ColorPair(Cyan, Black),
       [ZFS_RATIO] = A_BOLD | ColorPair(Magenta, Black),
-      [ZRAM] = ColorPair(Yellow, Black),
+      [ZRAM_COMPRESSED] = ColorPair(Cyan, Black),
+      [ZRAM_UNCOMPRESSED] = ColorPair(Yellow, Black),
       [DYNAMIC_GRAY] = ColorPairGrayBlack,
       [DYNAMIC_DARKGRAY] = A_BOLD | ColorPairGrayBlack,
       [DYNAMIC_RED] = ColorPair(Red, Black),
@@ -653,7 +657,8 @@ static int CRT_colorSchemes[LAST_COLORSCHEME][LAST_COLORELEMENT] = {
       [ZFS_OTHER] = A_BOLD | ColorPair(Magenta, Blue),
       [ZFS_COMPRESSED] = A_BOLD | ColorPair(White, Blue),
       [ZFS_RATIO] = A_BOLD | ColorPair(Magenta, Blue),
-      [ZRAM] = A_BOLD | ColorPair(Yellow, Blue),
+      [ZRAM_COMPRESSED] = ColorPair(Cyan, Blue),
+      [ZRAM_UNCOMPRESSED] = ColorPair(Yellow, Blue),
       [DYNAMIC_GRAY] = ColorPairGrayBlack,
       [DYNAMIC_DARKGRAY] = A_BOLD | ColorPairGrayBlack,
       [DYNAMIC_RED] = ColorPair(Red, Blue),
@@ -761,7 +766,8 @@ static int CRT_colorSchemes[LAST_COLORSCHEME][LAST_COLORELEMENT] = {
       [ZFS_OTHER] = ColorPair(Magenta, Black),
       [ZFS_COMPRESSED] = ColorPair(Blue, Black),
       [ZFS_RATIO] = ColorPair(Magenta, Black),
-      [ZRAM] = ColorPair(Yellow, Black),
+      [ZRAM_COMPRESSED] = ColorPair(Blue, Black),
+      [ZRAM_UNCOMPRESSED] = ColorPair(Yellow, Black),
       [DYNAMIC_GRAY] = ColorPairGrayBlack,
       [DYNAMIC_DARKGRAY] = A_BOLD | ColorPairGrayBlack,
       [DYNAMIC_RED] = ColorPair(Red, Black),
@@ -888,16 +894,16 @@ static struct sigaction old_sig_handler[32];
 
 static void CRT_installSignalHandlers(void) {
    struct sigaction act;
-   sigemptyset (&act.sa_mask);
+   sigemptyset(&act.sa_mask);
    act.sa_flags = (int)SA_RESETHAND | SA_NODEFER;
    act.sa_handler = CRT_handleSIGSEGV;
-   sigaction (SIGSEGV, &act, &old_sig_handler[SIGSEGV]);
-   sigaction (SIGFPE, &act, &old_sig_handler[SIGFPE]);
-   sigaction (SIGILL, &act, &old_sig_handler[SIGILL]);
-   sigaction (SIGBUS, &act, &old_sig_handler[SIGBUS]);
-   sigaction (SIGPIPE, &act, &old_sig_handler[SIGPIPE]);
-   sigaction (SIGSYS, &act, &old_sig_handler[SIGSYS]);
-   sigaction (SIGABRT, &act, &old_sig_handler[SIGABRT]);
+   sigaction(SIGSEGV, &act, &old_sig_handler[SIGSEGV]);
+   sigaction(SIGFPE, &act, &old_sig_handler[SIGFPE]);
+   sigaction(SIGILL, &act, &old_sig_handler[SIGILL]);
+   sigaction(SIGBUS, &act, &old_sig_handler[SIGBUS]);
+   sigaction(SIGPIPE, &act, &old_sig_handler[SIGPIPE]);
+   sigaction(SIGSYS, &act, &old_sig_handler[SIGSYS]);
+   sigaction(SIGABRT, &act, &old_sig_handler[SIGABRT]);
 
    signal(SIGCHLD, SIG_DFL);
    signal(SIGINT, CRT_handleSIGTERM);
@@ -906,13 +912,13 @@ static void CRT_installSignalHandlers(void) {
 }
 
 void CRT_resetSignalHandlers(void) {
-   sigaction (SIGSEGV, &old_sig_handler[SIGSEGV], NULL);
-   sigaction (SIGFPE, &old_sig_handler[SIGFPE], NULL);
-   sigaction (SIGILL, &old_sig_handler[SIGILL], NULL);
-   sigaction (SIGBUS, &old_sig_handler[SIGBUS], NULL);
-   sigaction (SIGPIPE, &old_sig_handler[SIGPIPE], NULL);
-   sigaction (SIGSYS, &old_sig_handler[SIGSYS], NULL);
-   sigaction (SIGABRT, &old_sig_handler[SIGABRT], NULL);
+   sigaction(SIGSEGV, &old_sig_handler[SIGSEGV], NULL);
+   sigaction(SIGFPE, &old_sig_handler[SIGFPE], NULL);
+   sigaction(SIGILL, &old_sig_handler[SIGILL], NULL);
+   sigaction(SIGBUS, &old_sig_handler[SIGBUS], NULL);
+   sigaction(SIGPIPE, &old_sig_handler[SIGPIPE], NULL);
+   sigaction(SIGSYS, &old_sig_handler[SIGSYS], NULL);
+   sigaction(SIGABRT, &old_sig_handler[SIGABRT], NULL);
 
    signal(SIGINT, SIG_DFL);
    signal(SIGTERM, SIG_DFL);
@@ -1158,7 +1164,7 @@ void CRT_handleSIGSEGV(int signal) {
       "  - Your OS and kernel version (uname -a)\n"
       "  - Your distribution and release (lsb_release -a)\n"
       "  - Likely steps to reproduce (How did it happen?)\n",
-      command
+      program
    );
 
 #ifdef PRINT_BACKTRACE
@@ -1201,13 +1207,13 @@ void CRT_handleSIGSEGV(int signal) {
       "please also provide a disassembly of your %s binary. "
       "This can usually be done by running the following command:\n"
       "\n",
-      command
+      program
    );
 
 #ifdef HTOP_DARWIN
-   fprintf(stderr, "   otool -tvV `which %s` > ~/%s.otool\n", command, command);
+   fprintf(stderr, "   otool -tvV `which %s` > ~/%s.otool\n", program, program);
 #else
-   fprintf(stderr, "   objdump -d -S -w `which %s` > ~/%s.objdump\n", command, command);
+   fprintf(stderr, "   objdump -d -S -w `which %s` > ~/%s.objdump\n", program, program);
 #endif
 
    fprintf(stderr,
@@ -1221,7 +1227,7 @@ void CRT_handleSIGSEGV(int signal) {
       "\n"
       "Thank you for helping to improve %s!\n"
       "\n",
-      command
+      program
    );
 
    /* Call old sigsegv handler; may be default exit or third party one (e.g. ASAN) */

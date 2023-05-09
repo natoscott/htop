@@ -122,13 +122,13 @@ Process* LinuxProcess_new(const Machine* host);
 
 void Process_delete(Object* cast);
 
-IOPriority LinuxProcess_updateIOPriority(LinuxProcess* this);
+IOPriority LinuxProcess_updateIOPriority(Row* super);
 
-bool LinuxProcess_setIOPriority(Process* this, Arg ioprio);
+bool LinuxProcess_setIOPriority(Row* super, Arg ioprio);
 
 bool LinuxProcess_isAutogroupEnabled(void);
 
-bool LinuxProcess_changeAutogroupPriorityBy(Process* this, Arg delta);
+bool LinuxProcess_changeAutogroupPriorityBy(Row* super, Arg delta);
 
 bool Process_isThread(const Process* this);
 

@@ -74,6 +74,7 @@ myhtopsources = \
 	Process.c \
 	ProcessList.c \
 	ProcessLocksScreen.c \
+	Row.c \
 	RichString.c \
 	Scheduling.c \
 	ScreenManager.c \
@@ -82,6 +83,7 @@ myhtopsources = \
 	SignalsPanel.c \
 	SwapMeter.c \
 	SysArchMeter.c \
+	Table.c \
 	TasksMeter.c \
 	TraceScreen.c \
 	UptimeMeter.c \
@@ -140,6 +142,7 @@ myhtopheaders = \
 	ProcessLocksScreen.h \
 	ProvideCurses.h \
 	RichString.h \
+	Row.h \
 	Scheduling.h \
 	ScreenManager.h \
 	ScreensPanel.h \
@@ -147,6 +150,7 @@ myhtopheaders = \
 	SignalsPanel.h \
 	SwapMeter.h \
 	SysArchMeter.h \
+	Table.h \
 	TasksMeter.h \
 	TraceScreen.h \
 	UptimeMeter.h \

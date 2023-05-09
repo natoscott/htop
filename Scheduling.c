@@ -97,7 +97,7 @@ Panel* Scheduling_newPriorityPanel(int policy, int preSelectedPriority) {
    return this;
 }
 
-bool Scheduling_setPolicy(Process* proc, Arg arg) {
+bool Scheduling_setPolicy(Row* row, Arg arg) {
    const SchedulingArg* sarg = arg.v;
    int policy = sarg->policy;
 
@@ -112,7 +112,7 @@ bool Scheduling_setPolicy(Process* proc, Arg arg) {
       policy &= SCHED_RESET_ON_FORK;
    #endif
 
-   int r = sched_setscheduler(proc->pid, policy, &param);
+   int r = sched_setscheduler(row->id, policy, &param);
 
    /* POSIX says on success the previous scheduling policy should be returned,
     * but Linux always returns 0. */
@@ -149,6 +149,6 @@ const char* Scheduling_formatPolicy(int policy) {
 }
 
 void Scheduling_readProcessPolicy(Process* proc) {
-   proc->scheduling_policy = sched_getscheduler(proc->pid);
+   proc->scheduling_policy = sched_getscheduler(Process_getPid(proc));
 }
 #endif  /* SCHEDULER_SUPPORT */

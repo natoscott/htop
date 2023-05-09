@@ -66,18 +66,19 @@ void Process_delete(Object* cast) {
    free(this);
 }
 
-static void DragonFlyBSDProcess_writeField(const Process* this, RichString* str, ProcessField field) {
+static void DragonFlyBSDProcess_writeField(const Row* super, RichString* str, ProcessField field) {
+   const Process* this = (const Process*) super;
    const DragonFlyBSDProcess* fp = (const DragonFlyBSDProcess*) this;
    char buffer[256]; buffer[255] = '\0';
    int attr = CRT_colors[DEFAULT_COLOR];
    size_t n = sizeof(buffer) - 1;
    switch (field) {
    // add Platform-specific fields here
-   case PID: xSnprintf(buffer, n, "%*d ", Process_pidDigits, Process_isKernelThread(this) ? -1 : this->pid); break;
+   case PID: xSnprintf(buffer, n, "%*d ", Process_pidDigits, Process_isKernelThread(this) ? -1 : Process_getPid(this)); break;
    case JID: xSnprintf(buffer, n, "%*d ", Process_pidDigits, fp->jid); break;
-   case JAIL: Process_printLeftAlignedField(str, attr, fp->jname, 11); return;
+   case JAIL: Row_printLeftAlignedField(str, attr, fp->jname, 11); return;
    default:
-      Process_writeField(this, str, field);
+      Process_writeField(super, str, field);
       return;
    }
    RichString_appendWide(str, attr, buffer);
@@ -100,11 +101,17 @@ static int DragonFlyBSDProcess_compareByKey(const Process* v1, const Process* v2
 
 const ProcessClass DragonFlyBSDProcess_class = {
    .super = {
-      .extends = Class(Process),
-      .display = Process_display,
-      .delete = Process_delete,
-      .compare = Process_compare
+      .super = {
+         .extends = Class(Process),
+         .display = Row_display,
+         .delete = Process_delete,
+         .compare = Process_compare
+      },
+      .isVisible = Process_isVisible,
+      .matchesFilter = Process_matchesFilter,
+      .compareByParent = Process_compareByParent,
+      .sortKeyString = Process_getSortKey,
+      .writeField = DragonFlyBSDProcess_writeField
    },
-   .writeField = DragonFlyBSDProcess_writeField,
    .compareByKey = DragonFlyBSDProcess_compareByKey
 };

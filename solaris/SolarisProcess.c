@@ -73,8 +73,8 @@ void Process_delete(Object* cast) {
    free(sp);
 }
 
-static void SolarisProcess_writeField(const Process* this, RichString* str, ProcessField field) {
-   const SolarisProcess* sp = (const SolarisProcess*) this;
+static void SolarisProcess_writeField(const Row* super, RichString* str, ProcessField field) {
+   const SolarisProcess* sp = (const SolarisProcess*) super;
    char buffer[256]; buffer[255] = '\0';
    int attr = CRT_colors[DEFAULT_COLOR];
    int n = sizeof(buffer) - 1;
@@ -85,13 +85,13 @@ static void SolarisProcess_writeField(const Process* this, RichString* str, Proc
    case TASKID: xSnprintf(buffer, n, "%*d ", Process_pidDigits, sp->taskid); break;
    case POOLID: xSnprintf(buffer, n, "%*d ", Process_pidDigits, sp->poolid); break;
    case CONTID: xSnprintf(buffer, n, "%*d ", Process_pidDigits, sp->contid); break;
-   case ZONE: Process_printLeftAlignedField(str, attr, sp->zname ? sp->zname : "global", ZONENAME_MAX/4); return;
+   case ZONE: Row_printLeftAlignedField(str, attr, sp->zname ? sp->zname : "global", ZONENAME_MAX/4); return;
    case PID: xSnprintf(buffer, n, "%*d ", Process_pidDigits, sp->realpid); break;
    case PPID: xSnprintf(buffer, n, "%*d ", Process_pidDigits, sp->realppid); break;
    case TGID: xSnprintf(buffer, n, "%*d ", Process_pidDigits, sp->realtgid); break;
    case LWPID: xSnprintf(buffer, n, "%*d ", Process_pidDigits, sp->lwpid); break;
    default:
-      Process_writeField(this, str, field);
+      Process_writeField(super, str, field);
       return;
    }
    RichString_appendWide(str, attr, buffer);
@@ -127,11 +127,17 @@ static int SolarisProcess_compareByKey(const Process* v1, const Process* v2, Pro
 
 const ProcessClass SolarisProcess_class = {
    .super = {
-      .extends = Class(Process),
-      .display = Process_display,
-      .delete = Process_delete,
-      .compare = Process_compare
+      .super = {
+         .extends = Class(Process),
+         .display = Row_display,
+         .delete = Process_delete,
+         .compare = Process_compare
+      },
+      .isVisible = Process_isVisible,
+      .matchesFilter = Process_matchesFilter,
+      .compareByParent = Process_compareByParent,
+      .sortKeyString = Process_getSortKey,
+      .writeField = SolarisProcess_writeField,
    },
-   .writeField = SolarisProcess_writeField,
    .compareByKey = SolarisProcess_compareByKey
 };

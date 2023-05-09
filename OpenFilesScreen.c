@@ -75,9 +75,9 @@ OpenFilesScreen* OpenFilesScreen_new(const Process* process) {
    OpenFilesScreen* this = xMalloc(sizeof(OpenFilesScreen));
    Object_setClass(this, Class(OpenFilesScreen));
    if (Process_isThread(process)) {
-      this->pid = process->tgid;
+      this->pid = Process_getThreadGroup(process);
    } else {
-      this->pid = process->pid;
+      this->pid = Process_getPid(process);
    }
    return (OpenFilesScreen*) InfoScreen_init(&this->super, process, NULL, LINES - 2, "   FD TYPE    MODE DEVICE           SIZE     OFFSET       NODE  NAME");
 }

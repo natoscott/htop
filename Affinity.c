@@ -52,9 +52,9 @@ void Affinity_add(Affinity* this, unsigned int id) {
 
 #if defined(HAVE_LIBHWLOC)
 
-Affinity* Affinity_get(const Process* proc, Machine* host) {
+Affinity* Affinity_get(const Row* row, Machine* host) {
    hwloc_cpuset_t cpuset = hwloc_bitmap_alloc();
-   bool ok = (hwloc_get_proc_cpubind(host->topology, proc->pid, cpuset, HTOP_HWLOC_CPUBIND_FLAG) == 0);
+   bool ok = (hwloc_get_proc_cpubind(host->topology, row->id, cpuset, HTOP_HWLOC_CPUBIND_FLAG) == 0);
    Affinity* affinity = NULL;
    if (ok) {
       affinity = Affinity_new(host);
@@ -73,22 +73,22 @@ Affinity* Affinity_get(const Process* proc, Machine* host) {
    return affinity;
 }
 
-bool Affinity_set(Process* proc, Arg arg) {
+bool Affinity_set(Row* row, Arg arg) {
    Affinity* this = arg.v;
    hwloc_cpuset_t cpuset = hwloc_bitmap_alloc();
    for (unsigned int i = 0; i < this->used; i++) {
       hwloc_bitmap_set(cpuset, this->cpus[i]);
    }
-   bool ok = (hwloc_set_proc_cpubind(this->host->topology, proc->pid, cpuset, HTOP_HWLOC_CPUBIND_FLAG) == 0);
+   bool ok = (hwloc_set_proc_cpubind(this->host->topology, row->id, cpuset, HTOP_HWLOC_CPUBIND_FLAG) == 0);
    hwloc_bitmap_free(cpuset);
    return ok;
 }
 
 #elif defined(HAVE_AFFINITY)
 
-Affinity* Affinity_get(const Process* proc, Machine* host) {
+Affinity* Affinity_get(const Row* row, Machine* host) {
    cpu_set_t cpuset;
-   bool ok = (sched_getaffinity(proc->pid, sizeof(cpu_set_t), &cpuset) == 0);
+   bool ok = (sched_getaffinity(row->id, sizeof(cpu_set_t), &cpuset) == 0);
    if (!ok)
       return NULL;
 
@@ -101,14 +101,14 @@ Affinity* Affinity_get(const Process* proc, Machine* host) {
    return affinity;
 }
 
-bool Affinity_set(Process* proc, Arg arg) {
+bool Affinity_set(Row* row, Arg arg) {
    Affinity* this = arg.v;
    cpu_set_t cpuset;
    CPU_ZERO(&cpuset);
    for (unsigned int i = 0; i < this->used; i++) {
       CPU_SET(this->cpus[i], &cpuset);
    }
-   bool ok = (sched_setaffinity(proc->pid, sizeof(unsigned long), &cpuset) == 0);
+   bool ok = (sched_setaffinity(row->id, sizeof(unsigned long), &cpuset) == 0);
    return ok;
 }
 

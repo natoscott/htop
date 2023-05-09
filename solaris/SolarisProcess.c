@@ -137,7 +137,7 @@ const ProcessClass SolarisProcess_class = {
       .matchesFilter = Process_matchesFilter,
       .compareByParent = Process_compareByParent,
       .sortKeyString = Process_getSortKey,
-      .writeField = SolarisProcess_writeField,
+      .writeField = SolarisProcess_writeField
    },
    .compareByKey = SolarisProcess_compareByKey
 };

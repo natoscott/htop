@@ -747,7 +747,7 @@ void Process_writeField(const Row* super, RichString* str, RowField field) {
 }
 
 void Process_done(Process* this) {
-   assert (this != NULL);
+   assert(this != NULL);
    free(this->cmdline);
    free(this->procComm);
    free(this->procExe);
@@ -769,8 +769,8 @@ const char* Process_getCommand(const Process* this) {
    return this->mergedCommand.str;
 }
 
-const char* Process_getSortKey(const Row* super) {
-   const Process* this = (const Process*) super;
+const char* Process_getSortKey(Row* super) {
+   Process* this = (Process*) super;
    return Process_getCommand(this);
 }
 

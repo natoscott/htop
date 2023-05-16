@@ -305,7 +305,7 @@ int Process_compareByKey_Base(const Process* p1, const Process* p2, ProcessField
 
 const char* Process_getCommand(const Process* this);
 
-const char* Process_getSortKey(const Row* super);
+const char* Process_getSortKey(Row* super);
 
 void Process_updateComm(Process* this, const char* comm);
 void Process_updateCmdline(Process* this, const char* cmdline, int basenameStart, int basenameEnd);

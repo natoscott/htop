@@ -41,6 +41,11 @@ void Row_init(Row* this, const Machine* host) {
    this->uid = (uid_t)-1;
 }
 
+void Row_done(Row* this) {
+   assert(this != NULL);
+   (void) this;
+}
+
 bool Row_isNew(const Row* this) {
    const Machine* host = this->host;
    if (host->monotonicMs >= this->seenStampMs) {
@@ -58,10 +63,11 @@ void Row_display(const Object* cast, RichString* out) {
    const Row* this = (const Row*) cast;
    const Machine* host = this->host;
    const Settings* settings = host->settings;
-   const ProcessField* fields = settings->ss->fields;
+   const RowField* fields = settings->ss->fields;
 
-   for (int i = 0; fields[i]; i++)
+   for (int i = 0; fields[i]; i++) {
       As_Row(this)->writeField(this, out, fields[i]);
+   }
 
    if (settings->shadowOtherUsers && this->uid != host->htopUserId) {
       RichString_setAttr(out, CRT_colors[PROCESS_SHADOW]);
@@ -130,7 +136,7 @@ static const char* alignedTitleDynamicColumn(const Settings* settings, int key, 
    int width = column->width;
    if (!width || abs(width) > DYNAMIC_MAX_COLUMN_WIDTH)
       width = DYNAMIC_DEFAULT_COLUMN_WIDTH;
-   xSnprintf(titleBuffer, titleBufferSize, "%*s", width, column->heading);
+   xSnprintf(titleBuffer, titleBufferSize, "%*s ", width, column->heading);
    return titleBuffer;
 }
 

@@ -57,15 +57,16 @@ void Machine_done(Machine* this) {
       hwloc_topology_destroy(this->topology);
    }
 #endif
-   for (unsigned int i = 0; i < this->tableCount; i++) {
-      Object_delete(&this->tables[i]->super);
-   }
+   Object_delete(this->processTable);
+   free(this->tables);
 }
 
-void Machine_addTable(Machine* this, Table* table, bool processes) {
-   if (processes)
-      this->processTable = table;
-   this->activeTable = table;
+static void Machine_addTable(Machine* this, Table* table) {
+   /* check that this table has not been seen previously */
+   for (size_t i = 0; i < this->tableCount; i++) {
+      if (this->tables[i] == table)
+         return;
+   }
 
    size_t nmemb = this->tableCount + 1;
    Table** tables = (Table**) xReallocArray(this->tables, nmemb, sizeof(Table*));
@@ -73,6 +74,28 @@ void Machine_addTable(Machine* this, Table* table, bool processes) {
       tables[nmemb - 1] = table;
       this->tables = tables;
       this->tableCount++;
+   }
+}
+
+void Machine_populateTablesFromSettings(Machine* this, Settings* settings, Table* processTable) {
+   this->settings = settings;
+   this->processTable = processTable;
+
+   for (size_t i = 0; i < settings->nScreens; i++) {
+      ScreenSettings* ss = settings->screens[i];
+      Table* table = ss->table;
+      if (!table)
+         table = ss->table = processTable;
+      if (i == 0)
+         this->activeTable = table;
+
+      Machine_addTable(this, table);
+   }
+}
+
+void Machine_setTablesPanel(Machine* this, Panel* panel) {
+   for (size_t i = 0; i < this->tableCount; i++) {
+      Table_setPanel(this->tables[i], panel);
    }
 }
 

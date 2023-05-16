@@ -165,6 +165,16 @@ Htop_Reaction Action_setSortKey(Settings* settings, ProcessField sortKey) {
 
 // ----------------------------------------
 
+static bool Action_writeableProcess(State* st) {
+   const Settings* settings = st->host->settings;
+   return !(Settings_isReadonly() || settings->ss->dynamic);
+}
+
+static bool Action_readableProcess(State* st) {
+   const Settings* settings = st->host->settings;
+   return !(settings->ss->dynamic);
+}
+
 static Htop_Reaction actionSetSortColumn(State* st) {
    Htop_Reaction reaction = HTOP_OK;
    Panel* sortPanel = Panel_new(0, 0, 0, 0, Class(ListItem), true, FunctionBar_newEnterEsc("Sort   ", "Cancel "));
@@ -303,7 +313,7 @@ static Htop_Reaction actionIncSearch(State* st) {
 }
 
 static Htop_Reaction actionHigherPriority(State* st) {
-   if (Settings_isReadonly())
+   if (!Action_writeableProcess(st))
       return HTOP_OK;
 
    bool changed = changePriority(st->mainPanel, -1);
@@ -311,7 +321,7 @@ static Htop_Reaction actionHigherPriority(State* st) {
 }
 
 static Htop_Reaction actionLowerPriority(State* st) {
-   if (Settings_isReadonly())
+   if (!Action_writeableProcess(st))
       return HTOP_OK;
 
    bool changed = changePriority(st->mainPanel, 1);
@@ -345,13 +355,25 @@ static Htop_Reaction actionExpandCollapseOrSortColumn(State* st) {
    return st->host->settings->ss->treeView ? actionExpandOrCollapse(st) : actionSetSortColumn(st);
 }
 
+static inline void setActiveScreen(Settings* settings, State* st, unsigned int ssIdx) {
+   assert(settings->ssIndex == ssIdx);
+   Machine* host = st->host;
+
+   settings->ss = settings->screens[ssIdx];
+   host->activeTable = settings->ss->table;
+
+   // set correct functionBar - readonly if requested, and/or with non-process screens
+   bool readonly = Settings_isReadonly() || (host->activeTable != host->processTable);
+   MainPanel_setFunctionBar(st->mainPanel, readonly);
+}
+
 static Htop_Reaction actionNextScreen(State* st) {
    Settings* settings = st->host->settings;
    settings->ssIndex++;
    if (settings->ssIndex == settings->nScreens) {
       settings->ssIndex = 0;
    }
-   settings->ss = settings->screens[settings->ssIndex];
+   setActiveScreen(settings, st, settings->ssIndex);
    return HTOP_UPDATE_PANELHDR | HTOP_REFRESH | HTOP_REDRAW_BAR;
 }
 
@@ -362,21 +384,22 @@ static Htop_Reaction actionPrevScreen(State* st) {
    } else {
       settings->ssIndex--;
    }
-   settings->ss = settings->screens[settings->ssIndex];
+   setActiveScreen(settings, st, settings->ssIndex);
    return HTOP_UPDATE_PANELHDR | HTOP_REFRESH | HTOP_REDRAW_BAR;
 }
 
-Htop_Reaction Action_setScreenTab(Settings* settings, int x) {
+Htop_Reaction Action_setScreenTab(State* st, int x) {
+   Settings* settings = st->host->settings;
    int s = 2;
    for (unsigned int i = 0; i < settings->nScreens; i++) {
       if (x < s) {
          return 0;
       }
-      const char* name = settings->screens[i]->name;
-      int len = strlen(name);
+      const char* tab = settings->screens[i]->heading;
+      int len = strlen(tab);
       if (x <= s + len + 1) {
          settings->ssIndex = i;
-         settings->ss = settings->screens[i];
+         setActiveScreen(settings, st, i);
          return HTOP_UPDATE_PANELHDR | HTOP_REFRESH | HTOP_REDRAW_BAR;
       }
       s += len + 3;
@@ -389,7 +412,7 @@ static Htop_Reaction actionQuit(ATTR_UNUSED State* st) {
 }
 
 static Htop_Reaction actionSetAffinity(State* st) {
-   if (Settings_isReadonly())
+   if (!Action_writeableProcess(st))
       return HTOP_OK;
 
    Machine* host = st->host;
@@ -427,7 +450,7 @@ static Htop_Reaction actionSetAffinity(State* st) {
 
 #ifdef SCHEDULER_SUPPORT
 static Htop_Reaction actionSetSchedPolicy(State* st) {
-   if (Settings_isReadonly())
+   if (!Action_writeableProcess(st))
       return HTOP_KEEP_FOLLOWING;
 
    static int preSelectedPolicy = SCHEDULINGPANEL_INITSELECTEDPOLICY;
@@ -471,7 +494,7 @@ static Htop_Reaction actionSetSchedPolicy(State* st) {
 #endif  /* SCHEDULER_SUPPORT */
 
 static Htop_Reaction actionKill(State* st) {
-   if (Settings_isReadonly())
+   if (!Action_writeableProcess(st))
       return HTOP_OK;
 
    static int preSelectedSignal = SIGNALSPANEL_INITSELECTEDSIGNAL;
@@ -522,7 +545,7 @@ static Htop_Reaction actionSetup(State* st) {
 }
 
 static Htop_Reaction actionLsof(State* st) {
-   if (Settings_isReadonly())
+   if (!Action_writeableProcess(st))
       return HTOP_OK;
 
    const Process* p = (Process*) Panel_getSelected((Panel*)st->mainPanel);
@@ -540,6 +563,9 @@ static Htop_Reaction actionLsof(State* st) {
 }
 
 static Htop_Reaction actionShowLocks(State* st) {
+   if (!Action_readableProcess(st))
+      return HTOP_OK;
+
    const Process* p = (Process*) Panel_getSelected((Panel*)st->mainPanel);
    if (!p)
       return HTOP_OK;
@@ -555,7 +581,7 @@ static Htop_Reaction actionShowLocks(State* st) {
 }
 
 static Htop_Reaction actionStrace(State* st) {
-   if (Settings_isReadonly())
+   if (!Action_writeableProcess(st))
       return HTOP_OK;
 
    const Process* p = (Process*) Panel_getSelected((Panel*)st->mainPanel);
@@ -804,6 +830,9 @@ static Htop_Reaction actionTagAllChildren(State* st) {
 }
 
 static Htop_Reaction actionShowEnvScreen(State* st) {
+   if (!Action_readableProcess(st))
+      return HTOP_OK;
+
    Process* p = (Process*) Panel_getSelected((Panel*)st->mainPanel);
    if (!p)
       return HTOP_OK;
@@ -819,6 +848,9 @@ static Htop_Reaction actionShowEnvScreen(State* st) {
 }
 
 static Htop_Reaction actionShowCommandScreen(State* st) {
+   if (!Action_readableProcess(st))
+      return HTOP_OK;
+
    Process* p = (Process*) Panel_getSelected((Panel*)st->mainPanel);
    if (!p)
       return HTOP_OK;

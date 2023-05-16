@@ -21,10 +21,13 @@ in the source distribution for its full text.
 
 #define CONFIG_READER_MIN_VERSION 3
 
+struct Table_;
+
 typedef struct {
    const char* name;
    const char* columns;
    const char* sortKey;
+   const char* treeSortKey;
 } ScreenDefaults;
 
 typedef struct {
@@ -34,7 +37,9 @@ typedef struct {
 } MeterColumnSetting;
 
 typedef struct {
-   char* name;
+   char* heading;  /* user-editable screen name (pretty) */
+   char* dynamic;  /* from DynamicScreen config (fixed) */
+   struct Table_* table;
    RowField* fields;
    uint32_t flags;
    int direction;
@@ -53,6 +58,7 @@ typedef struct Settings_ {
    MeterColumnSetting* hColumns;
    Hashtable* dynamicColumns; /* runtime-discovered columns */
    Hashtable* dynamicMeters;  /* runtime-discovered meters */
+   Hashtable* dynamicScreens; /* runtime-discovered screens */
 
    ScreenSettings** screens;
    unsigned int nScreens;
@@ -118,7 +124,7 @@ void Settings_delete(Settings* this);
 
 int Settings_write(const Settings* this, bool onCrash);
 
-Settings* Settings_new(unsigned int initialCpuCount, Hashtable* dynamicMeters, Hashtable* dynamicColumns);
+Settings* Settings_new(unsigned int initialCpuCount, Hashtable* dynamicMeters, Hashtable* dynamicColumns, Hashtable* dynamicScreens);
 
 ScreenSettings* Settings_newScreen(Settings* this, const ScreenDefaults* defaults);
 

@@ -192,6 +192,7 @@ static void Table_buildTree(Table* this) {
 
 void Table_updateDisplayList(Table* this) {
    const Settings* settings = this->host->settings;
+
    if (settings->ss->treeView) {
       if (this->needsSort)
          Table_buildTree(this);

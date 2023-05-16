@@ -10,7 +10,9 @@ in the source distribution for its full text.
 
 #include <stdbool.h>
 
+#include "AvailableColumnsPanel.h"
 #include "ColumnsPanel.h"
+#include "DynamicScreen.h"
 #include "ListItem.h"
 #include "Object.h"
 #include "Panel.h"
@@ -21,33 +23,48 @@ in the source distribution for its full text.
 #define SCREEN_NAME_LEN 20
 #endif
 
-typedef struct ScreensPanel_ {
+typedef struct ActiveScreensPanel_ {
    Panel super;
 
    ScreenManager* scr;
    Settings* settings;
-   ColumnsPanel* columns;
+   ColumnsPanel* activeColumns;
+   AvailableColumnsPanel* availableColumns;
    char buffer[SCREEN_NAME_LEN + 1];
    char* saved;
    int cursor;
    bool moving;
    ListItem* renamingItem;
+} ActiveScreensPanel;
+
+typedef struct ActiveScreenListItem_ {
+   ListItem super;
+   ScreenSettings* ss;
+} ActiveScreenListItem;
+
+typedef struct ScreensPanel_ {
+   Panel super;
+
+   ScreenManager* scr;
+   Settings* settings;
+   ActiveScreensPanel* activeScreens;
+   int cursor;
 } ScreensPanel;
 
 typedef struct ScreenListItem_ {
    ListItem super;
-   ScreenSettings* ss;
+   DynamicScreen* ds;
 } ScreenListItem;
 
 
-extern ObjectClass ScreenListItem_class;
-
-ScreenListItem* ScreenListItem_new(const char* value, ScreenSettings* ss);
-
-extern PanelClass ScreensPanel_class;
-
 ScreensPanel* ScreensPanel_new(Settings* settings);
 
-void ScreensPanel_update(Panel* super);
+extern ObjectClass ActiveScreenListItem_class;
+
+ActiveScreenListItem* ActiveScreenListItem_new(const char* value, ScreenSettings* ss);
+
+extern PanelClass ActiveScreensPanel_class;
+
+ActiveScreensPanel* ActiveScreensPanel_new(Settings* settings);
 
 #endif

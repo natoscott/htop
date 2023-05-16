@@ -75,10 +75,12 @@ static void CategoriesPanel_makeColorsPage(CategoriesPanel* this) {
 static void CategoriesPanel_makeScreensPage(CategoriesPanel* this) {
    Settings* settings = this->host->settings;
    Panel* screens = (Panel*) ScreensPanel_new(settings);
-   Panel* columns = (Panel*) ((ScreensPanel*)screens)->columns;
-   Panel* availableColumns = (Panel*) AvailableColumnsPanel_new(columns, settings->dynamicColumns);
-   ScreenManager_add(this->scr, screens, 20);
-   ScreenManager_add(this->scr, columns, 20);
+   Panel* activeScreens = (Panel*) ((ScreensPanel*)screens)->activeScreens;
+   Panel* activeColumns = (Panel*) ((ActiveScreensPanel*)activeScreens)->activeColumns;
+   Panel* availableColumns = (Panel*) ((ActiveScreensPanel*)activeScreens)->availableColumns;
+   ScreenManager_add(this->scr, screens, 14);
+   ScreenManager_add(this->scr, activeScreens, 16);
+   ScreenManager_add(this->scr, activeColumns, 20);
    ScreenManager_add(this->scr, availableColumns, -1);
 }
 

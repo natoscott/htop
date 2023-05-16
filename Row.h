@@ -123,7 +123,7 @@ typedef Row* (*Row_New)(const struct Machine_*);
 typedef void (*Row_WriteField)(const Row*, RichString*, RowField);
 typedef bool (*Row_IsVisible)(const Row*, const struct Table_*);
 typedef bool (*Row_MatchesFilter)(const Row*, const struct Table_*);
-typedef const char* (*Row_SortKeyString)(const Row*);
+typedef const char* (*Row_SortKeyString)(Row*);
 typedef int (*Row_CompareByParent)(const Row*, const Row*);
 
 int Row_compare(const void* v1, const void* v2);
@@ -159,6 +159,8 @@ typedef struct RowClass_ {
 extern const RowClass Row_class;
 
 void Row_init(Row* this, const struct Machine_* host);
+
+void Row_done(Row* this);
 
 void Row_display(const Object* cast, RichString* out);
 

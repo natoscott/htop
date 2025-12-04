@@ -328,9 +328,9 @@ static void FreeBSDMachine_scanMemoryInfo(Machine* super) {
    // total memory
    len = sizeof(totalMem);
    if ((sysctl(MIB_hw_physmem, 2, &(totalMem), &len, NULL, 0) == 0) && (totalMem > 0))
-      this->totalMem = totalMem / 1024;
+      super->totalMem = totalMem / 1024;
    else
-      this->totalMem = 0;
+      super->totalMem = 0;
 
    // "active" pages
    len = sizeof(memActive);
@@ -362,7 +362,7 @@ static void FreeBSDMachine_scanMemoryInfo(Machine* super) {
 
    // "buffers" pages (separate read, should be deducted from 'wired')
    len = sizeof(buffersMem);
-   if ((sysctl(MIB_vfs_bufspace, 2, &(buffersMem), &len, NULL, 0) == 0) && (buffersMem > 0)) { 
+   if ((sysctl(MIB_vfs_bufspace, 2, &(buffersMem), &len, NULL, 0) == 0) && (buffersMem > 0)) {
       this->buffersMem = buffersMem / 1024;
       this->wiredMem -= this->buffersMem; // substract (NB: "buffers" can't be larger than "wired")
    }

@@ -152,26 +152,21 @@ const SignalItem Platform_signals[] = {
 
 const unsigned int Platform_numberOfSignals = ARRAYSIZE(Platform_signals);
 
+enum {
+   MEMORY_CLASS_WIRED = 0,
+   MEMORY_CLASS_ACTIVE,
+   MEMORY_CLASS_PAGED,
+   MEMORY_CLASS_INACTIVE,
+};
+
 const MemoryClass Platform_memoryClasses[] = {
-#define MEMORY_CLASS_WIRED    0
-   { .label = "wired",    .countsAsUsed = true,  .countsAsCache = false, .color = DYNAMIC_RED      },
-#define MEMORY_CLASS_ACTIVE   1
-   { .label = "active",   .countsAsUsed = true,  .countsAsCache = false, .color = DYNAMIC_GREEN    },
-#define MEMORY_CLASS_PAGED    2
-   { .label = "paged",    .countsAsUsed = true,  .countsAsCache = false, .color = DYNAMIC_DARKGRAY },
-#define MEMORY_CLASS_INACTIVE 3
-   { .label = "inactive", .countsAsUsed = false, .countsAsCache = true,  .color = DYNAMIC_GRAY     },
+   { .label = "wired",    .countsAsUsed = true,  .countsAsCache = false, .color = MEMORY_1 },
+   { .label = "active",   .countsAsUsed = true,  .countsAsCache = false, .color = MEMORY_2 },
+   { .label = "paged",    .countsAsUsed = true,  .countsAsCache = false, .color = MEMORY_3 },
+   { .label = "inactive", .countsAsUsed = false, .countsAsCache = true,  .color = MEMORY_4 },
 }; // N.B. the chart will display categories in this order
 
 const unsigned int Platform_numberOfMemoryClasses = ARRAYSIZE(Platform_memoryClasses);
-
-const int Platform_memoryMeter_attributes[] = {
-   Platform_memoryClasses[0].color,
-   Platform_memoryClasses[1].color,
-   Platform_memoryClasses[2].color,
-   Platform_memoryClasses[3].color,
-}; // there MUST be as many entries in this attributes array as memory classes
-
 
 const MeterClass* const Platform_meterTypes[] = {
    &CPUMeter_class,
@@ -296,7 +291,7 @@ double Platform_setCPUValues(Meter* this, int cpu) {
 void Platform_setMemoryValues(Meter* this) {
    const Machine* host = this->host;
    const NetBSDMachine* nhost = (const NetBSDMachine*) host;
-   this->total = nhost->totalMem;
+   this->total = host->totalMem;
    this->values[MEMORY_CLASS_WIRED]    = nhost->wiredMem;
    this->values[MEMORY_CLASS_ACTIVE]   = nhost->activeMem;
    this->values[MEMORY_CLASS_PAGED]    = nhost->pagedMem;
@@ -307,8 +302,6 @@ void Platform_setSwapValues(Meter* this) {
    const Machine* host = this->host;
    this->total = host->totalSwap;
    this->values[SWAP_METER_USED] = host->usedSwap;
-   // this->values[SWAP_METER_CACHE] = "pages that are both in swap and RAM, like SwapCached on linux"
-   // this->values[SWAP_METER_FRONTSWAP] = "pages that are accounted to swap but stored elsewhere, like frontswap on linux"
 }
 
 char* Platform_getProcessEnv(pid_t pid) {

@@ -141,32 +141,25 @@ const SignalItem Platform_signals[] = {
 
 const unsigned int Platform_numberOfSignals = ARRAYSIZE(Platform_signals);
 
+enum {
+   MEMORY_CLASS_USED = 0,
+   MEMORY_CLASS_SHARED,
+   MEMORY_CLASS_COMPRESSED,
+   MEMORY_CLASS_BUFFERS,
+   MEMORY_CLASS_CACHE,
+   MEMORY_CLASS_AVAILABLE,
+};
+
 const MemoryClass Platform_memoryClasses[] = {
-#define MEMORY_CLASS_USED       0
-   { .label = "used",       .countsAsUsed = true,  .countsAsCache = false, .color = DYNAMIC_GREEN    },
-#define MEMORY_CLASS_SHARED     1
-   { .label = "shared",     .countsAsUsed = true,  .countsAsCache = false, .color = DYNAMIC_MAGENTA  },
-#define MEMORY_CLASS_COMPRESSED 2
-   { .label = "compressed", .countsAsUsed = true,  .countsAsCache = false, .color = DYNAMIC_GRAY     },
-#define MEMORY_CLASS_BUFFERS    3
-   { .label = "buffers",    .countsAsUsed = false, .countsAsCache = false, .color = DYNAMIC_BLUE     },
-#define MEMORY_CLASS_CACHE      4
-   { .label = "cache",      .countsAsUsed = false, .countsAsCache = false, .color = DYNAMIC_YELLOW   },
-#define MEMORY_CLASS_AVAILABLE  5
-   { .label = "available",  .countsAsUsed = false, .countsAsCache = true,  .color = DYNAMIC_CYAN     },
+   { .label = "used",       .countsAsUsed = true,  .countsAsCache = false, .color = MEMORY_1 },
+   { .label = "shared",     .countsAsUsed = true,  .countsAsCache = false, .color = MEMORY_2 },
+   { .label = "compressed", .countsAsUsed = true,  .countsAsCache = false, .color = MEMORY_3 },
+   { .label = "buffers",    .countsAsUsed = false, .countsAsCache = false, .color = MEMORY_4 },
+   { .label = "cache",      .countsAsUsed = false, .countsAsCache = false, .color = MEMORY_5 },
+   { .label = "available",  .countsAsUsed = false, .countsAsCache = true,  .color = MEMORY_6 },
 }; // N.B. the chart will display categories in this order
 
 const unsigned int Platform_numberOfMemoryClasses = ARRAYSIZE(Platform_memoryClasses);
-
-const int Platform_memoryMeter_attributes[] = {
-   Platform_memoryClasses[0].color,
-   Platform_memoryClasses[1].color,
-   Platform_memoryClasses[2].color,
-   Platform_memoryClasses[3].color,
-   Platform_memoryClasses[4].color,
-   Platform_memoryClasses[5].color
-}; // there MUST be as many entries in this attributes array as memory classes
-
 
 static enum { BAT_PROC, BAT_SYS, BAT_ERR } Platform_Battery_method = BAT_PROC;
 static time_t Platform_Battery_cacheTime;
@@ -447,7 +440,7 @@ void Platform_setMemoryValues(Meter* this) {
    const Machine* host = this->host;
    const LinuxMachine* lhost = (const LinuxMachine*) host;
 
-   this->total = lhost->totalMem;
+   this->total = host->totalMem;
    this->values[MEMORY_CLASS_USED]       = lhost->usedMem;
    this->values[MEMORY_CLASS_SHARED]     = lhost->sharedMem;
    this->values[MEMORY_CLASS_COMPRESSED] = 0; /* compressed */

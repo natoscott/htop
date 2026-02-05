@@ -28,11 +28,26 @@ in the source distribution for its full text.
 
 static const char* const MainFunctions[]     = {"Help  ", "Setup ", "Search", "Filter", "Tree  ", "SortBy", "Nice -", "Nice +", "Kill  ", "Quit  ", NULL};
 static const char* const MainFunctions_ro[]  = {"Help  ", "Setup ", "Search", "Filter", "Tree  ", "SortBy", "      ", "      ", "      ", "Quit  ", NULL};
+static const char* const MainFunctions_archive[] = {"Help  ", "Setup ", "Pause ", "<<<   ", "<     ", ">     ", ">>>   ", "Start ", "End   ", "Quit  ", NULL};
 
 void MainPanel_updateLabels(MainPanel* this, bool list, bool filter) {
    FunctionBar* bar = MainPanel_getFunctionBar(this);
-   FunctionBar_setLabel(bar, KEY_F(5), list   ? "List  " : "Tree  ");
-   FunctionBar_setLabel(bar, KEY_F(4), filter ? "FILTER" : "Filter");
+
+#ifdef HTOP_PCP
+   extern bool Platform_getArchiveMode(void);
+   extern bool Platform_archiveIsPaused(void);
+
+   if (Platform_getArchiveMode()) {
+      /* In archive mode, update pause/play label */
+      bool paused = Platform_archiveIsPaused();
+      FunctionBar_setLabel(bar, KEY_F(3), paused ? "Play  " : "Pause ");
+   } else
+#endif
+   {
+      /* In normal mode, update tree and filter labels */
+      FunctionBar_setLabel(bar, KEY_F(5), list   ? "List  " : "Tree  ");
+      FunctionBar_setLabel(bar, KEY_F(4), filter ? "FILTER" : "Filter");
+   }
 }
 
 static void MainPanel_idSearch(MainPanel* this, int ch) {
@@ -219,7 +234,20 @@ MainPanel* MainPanel_new(void) {
    MainPanel* this = AllocThis(MainPanel);
    this->processBar = FunctionBar_new(MainFunctions, NULL, NULL);
    this->readonlyBar = FunctionBar_new(MainFunctions_ro, NULL, NULL);
-   FunctionBar* activeBar = Settings_isReadonly() ? this->readonlyBar : this->processBar;
+   this->archiveBar = FunctionBar_new(MainFunctions_archive, NULL, NULL);
+
+   /* Determine which bar to use */
+   FunctionBar* activeBar;
+#ifdef HTOP_PCP
+   extern bool Platform_getArchiveMode(void);
+   if (Platform_getArchiveMode()) {
+      activeBar = this->archiveBar;
+   } else
+#endif
+   {
+      activeBar = Settings_isReadonly() ? this->readonlyBar : this->processBar;
+   }
+
    Panel_init((Panel*) this, 1, 1, 1, 1, Class(Row), false, activeBar);
    this->keys = xCalloc(KEY_MAX, sizeof(Htop_Action));
    this->inc = IncSet_new(activeBar);
@@ -243,6 +271,7 @@ void MainPanel_delete(Object* object) {
    MainPanel* this = (MainPanel*) object;
    MainPanel_setFunctionBar(this, false);
    FunctionBar_delete(this->readonlyBar);
+   FunctionBar_delete(this->archiveBar);
    IncSet_delete(this->inc);
    free(this->keys);
    Panel_done(&this->super);

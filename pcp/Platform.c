@@ -359,6 +359,47 @@ bool Platform_init(void) {
 #else
       pmtimevalDec(&pcp->offset, &opts.start);
 #endif
+
+      /* Initialize archive replay state */
+      pmLogLabel label;
+      sts = pmGetArchiveLabel(&label);
+      if (sts >= 0) {
+#if PMAPI_VERSION >= 3
+         pcp->archiveStart = label.start;
+#else
+         pcp->archiveStart.tv_sec = label.start.tv_sec;
+         pcp->archiveStart.tv_nsec = label.start.tv_usec * 1000;
+#endif
+      } else {
+         memset(&pcp->archiveStart, 0, sizeof(struct timespec));
+      }
+
+      sts = pmGetArchiveEnd(&pcp->archiveEnd);
+      if (sts < 0) {
+         memset(&pcp->archiveEnd, 0, sizeof(struct timespec));
+      }
+
+      /* Set initial position from opts.start or archive start */
+#if PMAPI_VERSION >= 3
+      if (opts.start.tv_sec != 0 || opts.start.tv_nsec != 0) {
+         pcp->archiveCurrent = opts.start;
+      } else {
+         pcp->archiveCurrent = pcp->archiveStart;
+      }
+#else
+      if (opts.start.tv_sec != 0 || opts.start.tv_usec != 0) {
+         pcp->archiveCurrent.tv_sec = opts.start.tv_sec;
+         pcp->archiveCurrent.tv_nsec = opts.start.tv_usec * 1000;
+      } else {
+         pcp->archiveCurrent = pcp->archiveStart;
+      }
+#endif
+
+      /* Start paused, default forward mode */
+      pcp->paused = true;
+      pcp->replayMode = PM_MODE_FORW;
+      pcp->delta.tv_sec = 0;
+      pcp->delta.tv_nsec = 0;
    }
 
    for (unsigned int i = 0; i < PCP_METRIC_COUNT; i++)
@@ -453,8 +494,38 @@ void Platform_done(void) {
 }
 
 void Platform_setBindings(Htop_Action* keys) {
-   /* no platform-specific key bindings */
-   (void)keys;
+   /* Archive replay key bindings */
+   if (opts.context == PM_CONTEXT_ARCHIVE) {
+      extern Htop_Reaction actionArchiveStepForward(State* st);
+      extern Htop_Reaction actionArchiveStepBackward(State* st);
+      extern Htop_Reaction actionArchiveJumpForward(State* st);
+      extern Htop_Reaction actionArchiveJumpBackward(State* st);
+      extern Htop_Reaction actionArchiveTogglePause(State* st);
+      extern Htop_Reaction actionArchiveSeekStart(State* st);
+      extern Htop_Reaction actionArchiveSeekEnd(State* st);
+
+      /* Override space to toggle archive pause instead of tagging */
+      keys[' '] = actionArchiveTogglePause;
+
+      /* Archive navigation keys */
+      keys[KEY_RIGHT] = actionArchiveStepForward;
+      keys[KEY_LEFT] = actionArchiveStepBackward;
+      keys[KEY_HOME] = actionArchiveSeekStart;
+      keys[KEY_END] = actionArchiveSeekEnd;
+
+      /* Ctrl+Left/Right for time jumps (if supported by terminal) */
+      keys[KEY_SLEFT] = actionArchiveJumpBackward;  /* Shift+Left */
+      keys[KEY_SRIGHT] = actionArchiveJumpForward;  /* Shift+Right */
+
+      /* Function keys for archive mode */
+      keys[KEY_F(3)] = actionArchiveTogglePause;
+      keys[KEY_F(4)] = actionArchiveJumpBackward;
+      keys[KEY_F(5)] = actionArchiveStepBackward;
+      keys[KEY_F(6)] = actionArchiveStepForward;
+      keys[KEY_F(7)] = actionArchiveJumpForward;
+      keys[KEY_F(8)] = actionArchiveSeekStart;
+      keys[KEY_F(9)] = actionArchiveSeekEnd;
+   }
 }
 
 int Platform_getUptime(void) {
@@ -942,4 +1013,102 @@ void Platform_addDynamicScreenAvailableColumns(Panel* availableColumns, const ch
 void Platform_updateTables(Machine* host) {
    PCPDynamicScreen_appendTables(&pcp->screens, host);
    PCPDynamicColumns_setupWidths(&pcp->columns);
+}
+
+/* Archive replay functions */
+
+bool Platform_getArchiveMode(void) {
+   return opts.context == PM_CONTEXT_ARCHIVE;
+}
+
+void Platform_getArchiveTime(char* buffer, size_t size) {
+   if (opts.context != PM_CONTEXT_ARCHIVE) {
+      buffer[0] = '\0';
+      return;
+   }
+
+   struct tm tm;
+   time_t t = pcp->archiveCurrent.tv_sec;
+   localtime_r(&t, &tm);
+   snprintf(buffer, size, "%04d-%02d-%02d %02d:%02d:%02d",
+            tm.tm_year + 1900, tm.tm_mon + 1, tm.tm_mday,
+            tm.tm_hour, tm.tm_min, tm.tm_sec);
+}
+
+void Platform_getArchiveBounds(struct timespec* start, struct timespec* end) {
+   if (start)
+      *start = pcp->archiveStart;
+   if (end)
+      *end = pcp->archiveEnd;
+}
+
+void Platform_archiveStepForward(int samples) {
+   if (opts.context != PM_CONTEXT_ARCHIVE)
+      return;
+
+   (void)samples; /* Reserved for future use */
+   pcp->replayMode = PM_MODE_FORW;
+   pcp->delta.tv_sec = 0;
+   pcp->delta.tv_nsec = 0;
+   pcp->paused = false;
+}
+
+void Platform_archiveStepBackward(int samples) {
+   if (opts.context != PM_CONTEXT_ARCHIVE)
+      return;
+
+   (void)samples; /* Reserved for future use */
+   pcp->replayMode = PM_MODE_BACK;
+   pcp->delta.tv_sec = 0;
+   pcp->delta.tv_nsec = 0;
+   pcp->paused = false;
+}
+
+void Platform_archiveSeekTime(struct timespec* target) {
+   if (opts.context != PM_CONTEXT_ARCHIVE || !target)
+      return;
+
+   pcp->archiveCurrent = *target;
+   pcp->paused = true;
+}
+
+void Platform_archiveTogglePause(void) {
+   if (opts.context != PM_CONTEXT_ARCHIVE)
+      return;
+
+   pcp->paused = !pcp->paused;
+}
+
+void Platform_archiveSetMode(int mode) {
+   if (opts.context != PM_CONTEXT_ARCHIVE)
+      return;
+
+   pcp->replayMode = mode;
+}
+
+bool Platform_archiveIsPaused(void) {
+   if (opts.context != PM_CONTEXT_ARCHIVE)
+      return false;
+
+   return pcp->paused;
+}
+
+void Platform_archiveJumpForward(int minutes) {
+   if (opts.context != PM_CONTEXT_ARCHIVE)
+      return;
+
+   pcp->replayMode = PM_MODE_FORW;
+   pcp->delta.tv_sec = minutes * 60;
+   pcp->delta.tv_nsec = 0;
+   pcp->paused = false;
+}
+
+void Platform_archiveJumpBackward(int minutes) {
+   if (opts.context != PM_CONTEXT_ARCHIVE)
+      return;
+
+   pcp->replayMode = PM_MODE_BACK;
+   pcp->delta.tv_sec = minutes * 60;
+   pcp->delta.tv_nsec = 0;
+   pcp->paused = false;
 }

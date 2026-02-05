@@ -59,6 +59,13 @@ typedef struct Platform_ {
    char* release;             /* uname and distro from this context */
    int pidmax;                /* maximum platform process identifier */
    unsigned int ncpu;         /* maximum processor count configured */
+   /* archive replay state (only used when context == PM_CONTEXT_ARCHIVE) */
+   struct timespec archiveStart;   /* archive start timestamp */
+   struct timespec archiveEnd;     /* archive end timestamp */
+   struct timespec archiveCurrent; /* current position in archive */
+   int replayMode;                 /* pmSetMode mode: PM_MODE_FORW or PM_MODE_BACK */
+   struct timespec delta;          /* time delta for PM_MODE_FORW/BACK navigation */
+   bool paused;                    /* if true, don't advance, re-fetch at archiveCurrent */
 } Platform;
 
 extern const ScreenDefaults Platform_defaultScreens[];
@@ -171,5 +178,28 @@ void Platform_addDynamicScreenAvailableColumns(Panel* availableColumns, const ch
 void Platform_dynamicScreensDone(Hashtable* screens);
 
 void Platform_updateTables(Machine* host);
+
+/* Archive replay functions */
+bool Platform_getArchiveMode(void);
+
+void Platform_getArchiveTime(char* buffer, size_t size);
+
+void Platform_getArchiveBounds(struct timespec* start, struct timespec* end);
+
+void Platform_archiveStepForward(int samples);
+
+void Platform_archiveStepBackward(int samples);
+
+void Platform_archiveSeekTime(struct timespec* target);
+
+void Platform_archiveTogglePause(void);
+
+void Platform_archiveSetMode(int mode);
+
+bool Platform_archiveIsPaused(void);
+
+void Platform_archiveJumpForward(int minutes);
+
+void Platform_archiveJumpBackward(int minutes);
 
 #endif

@@ -220,6 +220,8 @@ void Metric_enableThreads(void) {
 }
 
 bool Metric_fetch(struct timeval* timestamp) {
+   extern pmOptions opts;
+
    if (pcp->result) {
       pmFreeResult(pcp->result);
       pcp->result = NULL;
@@ -229,18 +231,63 @@ bool Metric_fetch(struct timeval* timestamp) {
          return false;
       pcp->reconnect = false;
    }
+
+   /* Handle archive mode navigation with pmSetMode */
+   if (opts.context == PM_CONTEXT_ARCHIVE) {
+      int sts;
+
+      if (pcp->paused) {
+         /* When paused, position at archiveCurrent and fetch that exact position */
+         sts = pmSetMode(PM_MODE_INTERP, &pcp->archiveCurrent, 0);
+         if (sts < 0) {
+            if (pmDebugOptions.appl0)
+               fprintf(stderr, "Error: pmSetMode failed: %s\n", pmErrStr(sts));
+            return false;
+         }
+      } else {
+         /* When not paused, advance through archive in current replay mode */
+         sts = pmSetMode(pcp->replayMode, &pcp->delta, 0);
+         if (sts < 0) {
+            if (pmDebugOptions.appl0)
+               fprintf(stderr, "Error: pmSetMode failed: %s\n", pmErrStr(sts));
+            return false;
+         }
+      }
+   }
+
    int sts, count = 0;
    int total = (int) pcp->totalMetrics;
    do {
       sts = pmFetch(total, pcp->fetch, &pcp->result);
    } while (sts == PM_ERR_IPC && ++count < 3);
+
    if (sts < 0) {
+      /* Handle archive end conditions */
+      if (opts.context == PM_CONTEXT_ARCHIVE && sts == PM_ERR_EOL) {
+         /* Hit end of archive, pause playback */
+         pcp->paused = true;
+         if (pmDebugOptions.appl0)
+            fprintf(stderr, "Reached end of archive, pausing\n");
+         return false;
+      }
+
       if (pmDebugOptions.appl0)
          fprintf(stderr, "Error: cannot fetch metric values: %s\n",
                  pmErrStr(sts));
       pcp->reconnect = true;
       return false;
    }
+
+   /* Update current archive position after successful fetch */
+   if (opts.context == PM_CONTEXT_ARCHIVE && pcp->result) {
+#if PMAPI_VERSION >= 3
+      pcp->archiveCurrent = pcp->result->timestamp;
+#else
+      pcp->archiveCurrent.tv_sec = pcp->result->timestamp.tv_sec;
+      pcp->archiveCurrent.tv_nsec = pcp->result->timestamp.tv_usec * 1000;
+#endif
+   }
+
    if (timestamp) {
 #if PMAPI_VERSION >= 3
       pmtimespecTotimeval(&pcp->result->timestamp, timestamp);

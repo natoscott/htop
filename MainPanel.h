@@ -25,6 +25,7 @@ typedef struct MainPanel_ {
    Htop_Action* keys;
    FunctionBar* processBar;  /* function bar with process-specific actions */
    FunctionBar* readonlyBar;  /* function bar without process actions (ro) */
+   FunctionBar* archiveBar;   /* function bar for archive replay mode */
    unsigned int idSearch;
 } MainPanel;
 

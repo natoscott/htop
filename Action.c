@@ -896,6 +896,96 @@ static Htop_Reaction actionShowCommandScreen(State* st) {
    return HTOP_REFRESH | HTOP_REDRAW_BAR;
 }
 
+// Archive replay action handlers
+#ifdef HTOP_PCP
+
+Htop_Reaction actionArchiveStepForward(State* st) {
+   extern bool Platform_getArchiveMode(void);
+   extern void Platform_archiveStepForward(int samples);
+
+   if (!Platform_getArchiveMode())
+      return HTOP_OK;
+
+   Platform_archiveStepForward(1);
+   return HTOP_REFRESH;
+}
+
+Htop_Reaction actionArchiveStepBackward(State* st) {
+   extern bool Platform_getArchiveMode(void);
+   extern void Platform_archiveStepBackward(int samples);
+
+   if (!Platform_getArchiveMode())
+      return HTOP_OK;
+
+   Platform_archiveStepBackward(1);
+   return HTOP_REFRESH;
+}
+
+Htop_Reaction actionArchiveJumpForward(State* st) {
+   extern bool Platform_getArchiveMode(void);
+   extern void Platform_archiveJumpForward(int minutes);
+
+   (void)st;
+   if (!Platform_getArchiveMode())
+      return HTOP_OK;
+
+   Platform_archiveJumpForward(5);  /* Jump forward 5 minutes */
+   return HTOP_REFRESH;
+}
+
+Htop_Reaction actionArchiveJumpBackward(State* st) {
+   extern bool Platform_getArchiveMode(void);
+   extern void Platform_archiveJumpBackward(int minutes);
+
+   (void)st;
+   if (!Platform_getArchiveMode())
+      return HTOP_OK;
+
+   Platform_archiveJumpBackward(5);  /* Jump backward 5 minutes */
+   return HTOP_REFRESH;
+}
+
+Htop_Reaction actionArchiveTogglePause(State* st) {
+   extern bool Platform_getArchiveMode(void);
+   extern void Platform_archiveTogglePause(void);
+
+   if (!Platform_getArchiveMode())
+      return st->pauseUpdate ? HTOP_REFRESH : HTOP_OK;
+
+   Platform_archiveTogglePause();
+   return HTOP_REFRESH | HTOP_REDRAW_BAR;
+}
+
+Htop_Reaction actionArchiveSeekStart(State* st) {
+   extern bool Platform_getArchiveMode(void);
+   extern void Platform_getArchiveBounds(struct timespec* start, struct timespec* end);
+   extern void Platform_archiveSeekTime(struct timespec* target);
+
+   if (!Platform_getArchiveMode())
+      return HTOP_OK;
+
+   struct timespec start;
+   Platform_getArchiveBounds(&start, NULL);
+   Platform_archiveSeekTime(&start);
+   return HTOP_REFRESH;
+}
+
+Htop_Reaction actionArchiveSeekEnd(State* st) {
+   extern bool Platform_getArchiveMode(void);
+   extern void Platform_getArchiveBounds(struct timespec* start, struct timespec* end);
+   extern void Platform_archiveSeekTime(struct timespec* target);
+
+   if (!Platform_getArchiveMode())
+      return HTOP_OK;
+
+   struct timespec end;
+   Platform_getArchiveBounds(NULL, &end);
+   Platform_archiveSeekTime(&end);
+   return HTOP_REFRESH;
+}
+
+#endif /* HTOP_PCP */
+
 void Action_setBindings(Htop_Action* keys) {
    keys[' '] = actionTag;
    keys['#'] = actionToggleHideMeters;
